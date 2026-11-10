@@ -51,7 +51,7 @@ button[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);colo
 .mindsw{display:flex;gap:6px;align-items:center;padding:0 4px;flex-wrap:wrap}
 .mindsw button{padding:4px 10px;font-size:12px;border-radius:14px}
 .trust{font:11px var(--f-mono);color:var(--muted);margin-left:auto}
-.msgs{height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:6px 4px;scroll-behavior:smooth}
+.msgs{height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:6px 4px;scroll-behavior:smooth}
 .m{max-width:85%;padding:7px 10px;border-radius:12px;font-size:13.5px;overflow-wrap:anywhere}
 .m.me{align-self:flex-end;background:var(--blue);color:#04202c;border-bottom-right-radius:4px}
 .m.rico{align-self:flex-start;background:#2c2338;border-bottom-left-radius:4px}
@@ -72,6 +72,32 @@ button[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);colo
 .filebtn input{position:absolute;width:1px;height:1px;opacity:0}
 .aibox .st{color:var(--sun);font:12px var(--f-mono)}
 #ai-ok button{padding:2px 8px;font-size:12px}
+.hud{position:absolute;top:10px;right:12px;z-index:3;text-align:right;pointer-events:none;font-family:var(--f-display);text-shadow:0 2px 0 #000b}
+.hud .st{font-size:22px;color:#ffffff66;letter-spacing:2px}.hud .st.on{color:#ffd166}
+.hud .mn{font-size:22px;color:#8bd17c}.hud .tm{font:12px var(--f-mono);color:#fff}
+.hud .gl{font:12px var(--f-body);color:#fff;max-width:230px;background:#16111dcc;padding:4px 8px;border-radius:6px;margin-top:4px;text-shadow:none}.hud .gl:empty{display:none}
+.joy{position:absolute;left:16px;bottom:16px;width:120px;height:120px;border-radius:50%;background:#ffffff22;border:2px solid #ffffff66;z-index:4;touch-action:none}
+.joy .knob{position:absolute;left:33px;top:33px;width:50px;height:50px;border-radius:50%;background:#ff8a4cdd;pointer-events:none}
+.ctl{position:absolute;right:12px;bottom:16px;z-index:4;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.ctl button{background:#16111de6;font-size:14px;padding:10px 14px}
+button.hot{background:var(--sun);border-color:var(--sun);color:#24110a;font-weight:600}
+button.hot[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#06201d}
+.apps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.apps button{padding:6px 4px;font-size:12px;border-radius:8px}
+.app{display:flex;flex-direction:column;gap:8px;min-width:0}
+.ct{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line)}
+.ct>div{flex:1;min-width:0}.ct b{display:block;margin-bottom:4px}
+.callbox{background:#1a1422;border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.callbox p{margin:0}
+.job{background:#1a1422;border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.job small{color:var(--muted)}.job ol{margin:0;padding-left:20px}.job li{color:var(--muted)}.job li.done{color:var(--good);text-decoration:line-through}.job li.cur{color:var(--fg);font-weight:600}
+#minimap{width:100%;max-width:340px;height:auto;align-self:center;border-radius:10px;cursor:pointer}
+.tx{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:360px;overflow:auto;font-size:13px}
+.tx li{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:4px 0}.tx li span{color:var(--muted);min-width:0}
+.tx b{font-family:var(--f-mono);color:var(--good);white-space:nowrap}.tx b.neg{color:var(--bad)}
+.stn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;margin-bottom:6px;width:100%}.stn small{color:var(--muted);font-size:11.5px}
+.stn[aria-pressed="true"] small{color:#06201d}
+.gallery{display:grid;grid-template-columns:1fr 1fr;gap:6px}.gallery figure{margin:0}.gallery img{width:100%;border-radius:6px;display:block}.gallery figcaption{font:10.5px var(--f-mono);color:var(--muted)}
 .items{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
 .items button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:9px 11px}
 .items button b{font-weight:600}
@@ -108,13 +134,14 @@ button[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);colo
 </head><body>
 <div class="wrap">
   <header>
-    <h1>Порт-Сол 3D<small>Рико хочет стать легендой города, а мозг ему выводит эволюция. Нажми на здание, чтобы отправить его туда. Передавай ему вещи, пиши на телефон: отвечает его собственный разум, Claude для этого не нужен.</small></h1>
+    <h1>Порт-Сол 3D<small>Бери Рико под управление, угоняй машины, уходи от погони, выполняй задания жителей. Рико хочет стать легендой города, а мозг ему выводит эволюция. Нажми на здание, чтобы отправить его туда. Передавай ему вещи, пиши на телефон: отвечает его собственный разум, Claude для этого не нужен.</small></h1>
     <div class="controls">
       <button id="evo" class="primary" type="button">Запустить эволюцию</button>
       <label class="chk"><input id="turbo" type="checkbox"> Турбо</label>
       <button type="button" class="spd" data-s="1">×1</button>
       <button type="button" class="spd" data-s="3" aria-pressed="true">×3</button>
       <button type="button" class="spd" data-s="10">×10</button>
+      <button id="ctrl" type="button" aria-pressed="false" class="hot">Управлять Рико</button>
       <button id="follow" type="button" aria-pressed="false">Камера за Рико</button>
       <button id="reset" type="button">Всё заново</button>
     </div>
@@ -122,11 +149,17 @@ button[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);colo
 
   <div class="grid">
     <div class="card view">
-      <div id="stage"><div class="menu" id="menu" hidden></div></div>
+      <div id="stage"><div class="menu" id="menu" hidden></div>
+        <div class="hud" aria-live="off"><div class="st" id="hudStars">☆☆☆☆☆</div><div class="mn" id="hudMoney">$60</div><div class="tm" id="hudTime"></div><div class="gl" id="hudGoal"></div></div>
+        <div class="joy" id="joy" hidden><div class="knob"></div></div>
+        <div class="ctl" id="ctl" hidden><button type="button" id="bEnter" class="hot" hidden>Войти</button><button type="button" id="bSteal" hidden>Угнать машину</button><button type="button" id="bExit" hidden>Выйти из машины</button></div>
+      </div>
       <div class="under"><span id="clock">День 1 · 08:00</span><span id="doing">—</span></div>
     </div>
     <div class="phone">
       <div class="phone-top"><b>Рико</b><span class="sig" id="sig">нет телефона</span></div>
+      <nav class="apps" id="apps" aria-label="Приложения"><button type="button" data-app="chat" aria-pressed="true">Чат</button><button type="button" data-app="contacts" aria-pressed="false">Контакты</button><button type="button" data-app="jobs" aria-pressed="false">Задания</button><button type="button" data-app="map" aria-pressed="false">Карта</button><button type="button" data-app="bank" aria-pressed="false">Банк</button><button type="button" data-app="radio" aria-pressed="false">Радио</button><button type="button" data-app="cam" aria-pressed="false">Камера</button></nav>
+      <div class="app" data-view="chat">
       <div class="mindsw"><button type="button" class="mode" data-m="ai" aria-pressed="false">Нейросеть</button><button type="button" class="mode" data-m="learn" aria-pressed="false">Учится говорить</button><button type="button" class="mode" data-m="own" aria-pressed="true">Свой разум</button><button type="button" class="mode" data-m="claude" aria-pressed="false">Claude</button><span class="trust" id="trust">доверие 40</span></div>
       <div class="aibox" id="aiBox" hidden>
         <div id="ai-load">
@@ -144,6 +177,13 @@ button[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);colo
         <input id="inp" type="text" maxlength="300" placeholder="Написать Рико…" autocomplete="off">
         <button type="submit" class="primary">Отправить</button>
       </form>
+      </div>
+      <div class="app" data-view="contacts" hidden><div id="contacts"></div><div class="callbox" id="callbox" hidden></div></div>
+      <div class="app" data-view="jobs" hidden><div id="jobs"></div></div>
+      <div class="app" data-view="map" hidden><canvas id="minimap" width="300" height="300" aria-label="Карта Порт-Сола"></canvas><p class="note">Нажми на место на карте: Рико пойдёт туда. Если ты управляешь им сам, на месте появится жёлтый луч-маршрут. Красные точки — полиция.</p></div>
+      <div class="app" data-view="bank" hidden><div class="lbl">Баланс</div><div class="money" id="bal"></div><ol class="tx" id="tx"></ol></div>
+      <div class="app" data-view="radio" hidden><div id="stations"></div><p class="note">Музыка собирается прямо в телефоне. Если не слышно, проверь беззвучный режим.</p></div>
+      <div class="app" data-view="cam" hidden><button type="button" id="snap" class="primary">Сделать снимок города</button><div class="gallery" id="gallery"></div></div>
     </div>
   </div>
 
@@ -353,6 +393,9 @@ function cityTick(now){
   if(anim)return;
   if(now<actUntil&&!order)return;
   if(cBiasUntil&&absH(C)>=cBiasUntil){cBias.fill(0);cBiasUntil=0}
+  if(order&&typeof order==='object'){const to=order.goto;order=null;gotoLoc(to,now);return}
+  if(!order&&!control&&MISSION&&C.food>20&&C.energy>15&&C.health>30&&C.hour<25&&R()<.6){const st=curStep();if(st&&st[0]!==C.loc){push({who:'th',text:'Задание: '+st[1]+'.'});gotoLoc(st[0],now);return}else if(st)missionArrive(C.loc)}
+  if(control&&!order)return;
   let a,byUser=false;
   if(order){a=order;order=null;byUser=true;if(!allowed(C,a)){push({who:'rico',text:'Не выходит: на это сейчас нет денег или нет условий.'});return}}
   else a=decide(C,champ,cBias,.15);
@@ -360,7 +403,8 @@ function cityTick(now){
   if(byUser)push({who:'th',text:'Голос попросил. '+ACT[id].line});else thought(a);
   const from=C.loc,to=ACT[id].loc;
   const go=()=>{
-    const ev=[],h0=absH(C);step(C,a,ev);cur=id;
+    const ev=[],h0=absH(C),m0=C.money;step(C,a,ev);cur=id;tx(C.money-m0,ACT[id].n);missionArrive(C.loc);ricoMorning();
+    if(control){const sp=standPos(C.loc);P3.x=sp.x;P3.z=sp.z}
     for(const x of ev){sys2(x.t,x.c);callCheck(x.t)}
     if(mindMode==='ai'&&AI.ready&&C.day!==AI.lastReflectDay&&C.hour<12)aiReflect();
     npcTalk();
@@ -527,7 +571,7 @@ function renderLex(){
 }
 
 /* ================= чат ================= */
-function push(m){m.d=C.day;m.h=C.hour;chat.push(m);if(chat.length>160)chat.splice(0,chat.length-160);renderMsg(m)}
+function push(m){m.d=C.day;m.h=C.hour;chat.push(m);if(chat.length>160)chat.splice(0,chat.length-160);renderMsg(m);if(app!=='chat'&&(m.who==='rico'||m.who==='sys')){unread++;renderApps()}}
 function sys(t){push({who:'sys',text:t})}
 function sys2(t,c){if(c==='big'||/Цель|Кобр|Арестован|больнице/.test(t))push({who:'sys',text:t})}
 function renderMsg(m){
@@ -569,7 +613,7 @@ ${msgs.map(m=>'- '+m.text).join('\n')}
   if(mindMode==='ai'&&AI.ready&&!replies.length){const wait0=Date.now();while(AI.busy&&Date.now()-wait0<60000)await new Promise(r=>setTimeout(r,300));AI.busy=true;try{replies.push(await aiChat(msgs))}catch(e){console.error(e);sys('Нейросеть сбилась, ответил разум на правилах.')}AI.busy=false}
   if(!replies.length){await new Promise(r=>setTimeout(r,500+R()*700));for(const m of msgs)replies.push(mindMode==='learn'?learnReply(m.text):mindReply(m.text))}
   chat.splice(chat.indexOf(typing),1);rerenderChat();
-  for(const x of replies){push({who:'rico',text:String(x.r).slice(0,400)});if(x.th)push({who:'th',text:String(x.th).slice(0,200)});if(Array.isArray(x.bias)&&x.bias.length)applyBias(x.bias,x.hours)}
+  for(const x of replies){push({who:'rico',text:String(x.r).slice(0,400)});if(x.th)push({who:'th',text:String(x.th).slice(0,200)});if(Array.isArray(x.bias)&&x.bias.length)applyBias(x.bias,x.hours);if(x.mission&&MISSIONS[x.mission]&&missionAvail(x.mission))acceptMission(x.mission,'rico')}
   asking=false;renderSig();save();
   if(inbox.length&&C.phone)deliver('phone');
 }
@@ -611,17 +655,18 @@ function aiPrompt(){
   const recent=chat.filter(m=>m.who==='sys'||m.who==='th').slice(-6).map(m=>'- '+m.text).join('\n');
   return `Ты — Рико, 24 года, парень из приморского города Порт-Сол. Вернулся домой почти без денег. Упрямый, ироничный, верный своим, любишь маму. Говоришь по-русски, коротко и просто, как живой человек, без мата. Тебе пишет загадочный «голос» по телефону. Доверие к нему: ${Math.round(MIND.trust)}/100. Ты не обязан слушаться.
 Твои цели: ${goals}.
-Сейчас: ${stateLine(C)}
+Сейчас: ${stateLine(C)} Розыск: ${stars()} из 5 звёзд.
+Подработки: ${Object.keys(MISSIONS).filter(missionAvail).map(id=>id+' — '+MISSIONS[id].from+': '+MISSIONS[id].title).join('; ')||'нет'}. ${MISSION?'Сейчас ты выполняешь задание «'+MISSIONS[MISSION.id].title+'», шаг: '+curStep()[1]+'.':''}
 Память: ${mem.join('; ')||'пока пусто'}.
 Недавние события:
 ${recent||'- ничего'}
 Дела, которые ты можешь делать (id): ${AIDS.join(', ')}.
-Всегда отвечай одним JSON-объектом: {"reply":"твой ответ, 1–2 предложения","thought":"мысль про себя","plan":"id дела, которое хочешь сделать, или пусто","avoid":"id дела, которого будешь избегать, или пусто"}`;
+Всегда отвечай одним JSON-объектом: {"reply":"твой ответ, 1–2 предложения","thought":"мысль про себя","plan":"id дела, которое хочешь сделать, или пусто","avoid":"id дела, которого будешь избегать, или пусто","mission":"id подработки, если хочешь за неё взяться, или пусто"}`;
 }
 function aiParse(text){let o=null;try{o=JSON.parse(text)}catch(e){const m=text.match(/\{[\s\S]*\}/);if(m)try{o=JSON.parse(m[0])}catch(e2){}}
   if(!o||typeof o!=='object')return{r:text.replace(/[{}"]/g,'').slice(0,300)||'…'};
   const b=[];if(ACT[o.plan])b.push({a:o.plan,w:2});if(ACT[o.avoid])b.push({a:o.avoid,w:-2.5});
-  return{r:String(o.reply||'…'),th:o.thought?String(o.thought):'',bias:b,hours:8}}
+  return{r:String(o.reply||'…'),th:o.thought?String(o.thought):'',bias:b,hours:8,mission:o.mission}}
 async function aiChat(msgs){
   const hist=[];for(const m of chat.filter(m=>(m.who==='me'||m.who==='rico')&&!msgs.includes(m)).slice(-6))hist.push({role:m.who==='me'?'user':'assistant',content:m.text});
   const res=await AI.w.createChatCompletion({messages:[{role:'system',content:aiPrompt()},...hist,{role:'user',content:msgs.map(m=>m.text).join('\n')}],max_tokens:160,temperature:.8,response_format:{type:'json_object'}});
@@ -630,7 +675,7 @@ async function aiChat(msgs){
 async function aiReflect(){
   if(!AI.ready||AI.busy||asking||mindMode!=='ai'||AI.lastReflectDay===C.day)return;AI.lastReflectDay=C.day;AI.busy=true;
   try{const res=await AI.w.createChatCompletion({messages:[{role:'system',content:aiPrompt()},{role:'user',content:'Наступило утро. Подумай про себя о вчерашнем дне: что получилось, что нет, чему научился, и реши, чем займёшься сегодня. В "reply" напиши короткий вывод-урок (одно предложение).'}],max_tokens:160,temperature:.8,response_format:{type:'json_object'}});
-    const r=aiParse(res.choices[0].message.content||'');
+    const r=aiParse(res.choices[0].message.content||'');if(r.mission&&MISSIONS[r.mission]&&missionAvail(r.mission))acceptMission(r.mission,'rico');
     if(r.th)push({who:'th',text:'Утро. '+r.th});
     if(r.r&&r.r!=='…'){MIND.diary=MIND.diary||[];MIND.diary.push(r.r.slice(0,160));if(MIND.diary.length>8)MIND.diary.shift();push({who:'th',text:'Вывод: '+r.r})}
     if(r.bias.length)applyBias(r.bias,14);save();
@@ -658,7 +703,7 @@ function renderItems(){const box=$('items');box.innerHTML='';for(const it of ITE
   b.onclick=()=>give(it);box.append(b)}}
 function give(it){
   lexNote('item',ITEMCON[it.id]);
-  const ev=[];it.use(C,ev);fix(C);MIND.giftDay[it.id]=C.day;MIND.gifts.push(it.n);if(MIND.gifts.length>12)MIND.gifts.shift();trust(4);
+  const ev=[],m0=C.money;it.use(C,ev);tx(C.money-m0,'Подарок: '+it.n);fix(C);MIND.giftDay[it.id]=C.day;MIND.gifts.push(it.n);if(MIND.gifts.length>12)MIND.gifts.shift();trust(4);
   sys(`Ты передал Рико: ${it.n}.`);for(const x of ev){sys2(x.t,x.c)}
   setTimeout(()=>{push({who:'rico',text:pick(it.say)});renderSig()},500);
   renderItems();renderPanels();save(true);
@@ -684,7 +729,7 @@ const HGT={office:16,casino:10,hospital:11,college:9,port:6,cars:5,phoneshop:6,g
 let homeMesh,shopSign,momLabel;
 function init3d(){
   if(!window.THREE){stage.insertAdjacentHTML('beforeend','<p class="note" style="padding:20px">Не удалось загрузить 3D-движок. Проверь интернет и обнови страницу.</p>');return}
-  renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));renderer.shadowMap.enabled=true;
+  renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));renderer.shadowMap.enabled=true;
   stage.prepend(renderer.domElement);
   scene=new THREE.Scene();scene.background=new THREE.Color(0x9ec9e8);scene.fog=new THREE.Fog(0x9ec9e8,110,260);
   camera=new THREE.PerspectiveCamera(42,1,.5,600);camera.position.set(30,40,50);
@@ -752,14 +797,15 @@ function render3d(now){
   if(anim){const k=Math.min(1,(now-anim.t0)/anim.dur),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;p=lpath(anim.from,anim.to,e);moving=true;
     const q=lpath(anim.from,anim.to,Math.min(1,e+.02));if(Math.abs(q.x-p.x)+Math.abs(q.z-p.z)>.001)ricoObj.rotation.y=Math.atan2(q.x-p.x,q.z-p.z);
     if(k>=1){const r=anim.res;anim=null;r()}}
+  else if(control){p={x:P3.x,z:P3.z};moving=ctrlMoving;ricoObj.rotation.y=P3.ry}
   else{const a=W3(C.loc),l=LOC[C.loc];p={x:a.x+(l.x<5?1.8:-1.8),z:a.z+(l.y<5?1.8:-1.8)}}
-  const useCar=moving&&C.car;carObj.visible=useCar;ricoObj.visible=!!champ&&!useCar;
+  lastP=p;const useCar=control&&!anim?!!veh:(moving&&C.car);carObj.visible=useCar;ricoObj.visible=!!champ&&!useCar;
   ricoObj.position.set(p.x,moving?Math.abs(Math.sin(now/110))*.15:0,p.z);carObj.position.set(p.x,0,p.z);carObj.rotation.y=ricoObj.rotation.y-Math.PI/2;
   ricoLight.position.set(p.x,4,p.z);
   NPCS.forEach((o,i)=>{const ob=npcObjs[i];let q;if(o.anim){const k=Math.min(1,(now-o.anim.t0)/o.anim.dur);q=lpath(o.anim.from,o.anim.to,k);
       const q2=lpath(o.anim.from,o.anim.to,Math.min(1,k+.02));if(Math.abs(q2.x-q.x)+Math.abs(q2.z-q.z)>.001)ob.rotation.y=Math.atan2(q2.x-q.x,q2.z-q.z)}
     else{const a=W3(o.loc);q={x:a.x-1.6+(i%3)*1.1,z:a.z-1.8+(i%2)*.9}}ob.position.set(q.x,0,q.z)});
-  if(follow&&champ){controls.target.lerp(new THREE.Vector3(p.x,0,p.z),.08)}
+  if((follow||control)&&champ){const tg=new THREE.Vector3(p.x,0,p.z),dl=tg.clone().sub(controls.target).multiplyScalar(control?.15:.08);controls.target.add(dl);camera.position.add(dl)}
   controls.update();renderer.render(scene,camera);
 }
 function openMenu(loc,x,y){const m=$('menu');m.innerHTML='';const t=document.createElement('b');t.textContent=LOC[loc].n;m.append(t);
@@ -767,15 +813,227 @@ function openMenu(loc,x,y){const m=$('menu');m.innerHTML='';const t=document.cre
   else{let any=false;AIDS.forEach((id,i)=>{if(ACT[id].loc!==loc)return;any=true;const b=document.createElement('button');b.type='button';
     const okA=allowed(C,i);b.textContent=ACT[id].n+(ACT[id].cost?` · $${ACT[id].cost}`:'');b.disabled=!okA;if(!okA)b.title='Сейчас недоступно';
     b.onclick=()=>{order=i;lexNote('order',id);closeMenu();push({who:'me',text:`(отправил Рико: ${ACT[id].n})`});};m.append(b)});
-    if(!any){const s=document.createElement('small');s.textContent='Здесь нечего делать.';m.append(s)}}
+    if(!any){const s=document.createElement('small');s.textContent='Здесь нечего делать.';m.append(s)}
+    if(C.loc!==loc&&!control){const g=document.createElement('button');g.type='button';g.textContent='Просто подойти сюда';g.onclick=()=>{order={goto:loc};closeMenu();push({who:'me',text:`(отправил Рико к: ${LOC[loc].n})`})};m.append(g)}}
   const c=document.createElement('button');c.type='button';c.textContent='Закрыть';c.onclick=closeMenu;m.append(c);
   m.hidden=false;const W=stage.clientWidth,H=stage.clientHeight;m.style.left=Math.min(Math.max(8,x),W-270)+'px';m.style.top=Math.min(Math.max(8,y),H-m.offsetHeight-8)+'px'}
 function closeMenu(){$('menu').hidden=true}
 
+/* ================= GTA-режим: управление, трафик, полиция, задания, телефон ================= */
+let control=false,P3={x:0,z:0,ry:0},ctrlMoving=false,veh=null,joy={x:0,y:0},keys={},ctrlAcc=0,lastP={x:0,z:0},lastFrame=0,ctlNear=null,gps=null,lastMorningDay=0;
+const ROADS=[0,1,2,3,4,5].map(i=>WX(i));
+const nr=v=>ROADS.reduce((a,b)=>Math.abs(b-v)<Math.abs(a-v)?b:a);
+function onRoad(x,z){if(x<-31.7||x>31.7||z<-31.7||z>31.7)return false;for(const v of ROADS)if(Math.abs(x-v)<1.95||Math.abs(z-v)<1.95)return true;return false}
+function standPos(k){const a=W3(k),l=LOC[k];return{x:a.x+(l.x<5?1.8:-1.8),z:a.z+(l.y<5?1.8:-1.8)}}
+function nearestLoc(x,z){let b=null,bd=1e9;for(const k in LOC){const s=standPos(k),d=Math.hypot(s.x-x,s.z-z);if(d<bd){bd=d;b=k}}return{k:b,d:bd}}
+function stars(){return Math.min(5,Math.ceil(C.heat/20-.001))}
+
+/* --- деньги --- */
+let TX=[],PHOTOS=[];
+function tx(d,t){d=Math.round(d);if(Math.abs(d)<2)return;TX.push({d:C.day,h:C.hour,a:d,t});if(TX.length>80)TX.shift()}
+
+/* --- задания --- */
+const MISSIONS={
+  leo:{from:'Лео',title:'Запчасти для гаража',steps:[['port','Забрать ящик с запчастями в порту'],['garage','Привезти запчасти в гараж']],reward:{money:150,rep:5},done:'Лео доволен, запчасти на месте. Держи свою долю!'},
+  rosa:{from:'Роза',title:'Обеды по адресам',steps:[['diner','Забрать заказ в бургерной'],['office','Отнести обед в деловой центр'],['hospital','Отнести обед врачам']],reward:{money:120,mood:10},done:'Все обеды доставлены, Роза дала ещё и пирожок.'},
+  miguel:{from:'Мигель',title:'Ночная гонка',need:e=>e.car,needText:'Без своей тачки Мигель даже разговаривать не станет.',steps:[['lot','Приехать на старт на пустыре'],['beach','Финиш у пляжа']],reward:{money:300,rep:10},chance:.55,done:'Обставил Мигеля! Видел бы ты его лицо.',fail:'Мигель пришёл первым.'},
+  mom:{from:'Мама',title:'Лекарства для мамы',steps:[['hospital','Купить лекарства в больнице'],['mom','Отнести маме']],reward:{cost:40,mood:30},done:'Отнёс маме лекарства. Она весь вечер меня кормила.'},
+  grant:{from:'Офицер Грант',title:'Глаза и уши',steps:[['den','Понаблюдать за логовом «Кобр»'],['office','Передать сведения Гранту']],reward:{money:200,heat:-100,gang:20},done:'Грант доволен. Полиция ко мне теперь добрее, а «Кобры» злее.'},
+  cobra:{from:'«Кобры»',title:'Пакет без вопросов',steps:[['den','Забрать пакет у «Кобр»'],['port','Передать пакет на причале']],reward:{money:450,heat:45,gang:-30},done:'Пакет доставлен. Деньги хорошие, но копы теперь на хвосте.'},
+};
+const REL={mom:80,leo:55,rosa:60,miguel:30,grant:20,cobra:10},DONE={};let MISSION=null;
+const curStep=()=>MISSION?MISSIONS[MISSION.id].steps[MISSION.step]:null;
+function missionAvail(id){const M=MISSIONS[id];return!MISSION&&DONE[id]!==C.day&&(!M.need||M.need(C))}
+function acceptMission(id,by){const M=MISSIONS[id];MISSION={id,step:0,day:C.day};sys(`Новое задание от ${M.from}: «${M.title}». Шаг 1: ${M.steps[0][1]}.`);
+  if(by==='rico'){push({who:'rico',text:pick([`Взял подработку: «${M.title}». ${M.from} попросил.`,`Слушай, я взялся за дело: «${M.title}».`]),call:true});ring()}
+  if(C.loc===M.steps[0][0])missionArrive(C.loc);renderApps(true);save(true)}
+function missionArrive(loc){if(!MISSION)return;const M=MISSIONS[MISSION.id],st=M.steps[MISSION.step];if(!st||st[0]!==loc)return;
+  sys('Готово: '+st[1]+'.');MISSION.step++;if(MISSION.step>=M.steps.length)finishMission();else sys('Дальше: '+M.steps[MISSION.step][1]+'.');renderApps(true)}
+function finishMission(){const id=MISSION.id,M=MISSIONS[id],rw=M.reward;MISSION=null;DONE[id]=C.day;
+  if(M.chance&&R()>M.chance){REL[id]=clamp(REL[id]-5,0,100);sys(`Задание «${M.title}» провалено.`);push({who:'rico',text:'Не вышло. '+(M.fail||''),call:true});ring();return}
+  const m0=C.money;C.money+=(rw.money||0)-(rw.cost||0);C.rep+=rw.rep||0;C.mood+=rw.mood||0;C.heat+=rw.heat||0;C.gang=clamp(C.gang+(rw.gang||0),0,100);fix(C);tx(C.money-m0,'Задание: '+M.title);
+  REL[id]=clamp(REL[id]+10,0,100);sys(`Задание «${M.title}» выполнено!${rw.money?' +$'+rw.money:''}`);push({who:'rico',text:M.done,call:true});ring();save(true)}
+function ricoMorning(){if(C.day===lastMorningDay||C.hour>=12)return;lastMorningDay=C.day;
+  if(MISSION||mindMode==='ai'||R()>.35)return;const av=Object.keys(MISSIONS).filter(missionAvail).filter(id=>id!=='cobra'||C.money<100||R()<.3);if(av.length)acceptMission(pick(av),'rico')}
+
+/* --- переход «просто пойти» --- */
+function gotoLoc(to,now){
+  if(control){gps=to;sys('GPS: маршрут до «'+LOC[to].n+'».');return}
+  if(C.loc===to){missionArrive(to);actUntil=now+300/speed;return}
+  const from=C.loc,onPath=boothOnPath(from,to);push({who:'th',text:'Иду: '+LOC[to].n+'.'});
+  anim={from,to,t0:now,dur:(Math.abs(LOC[from].x-LOC[to].x)+Math.abs(LOC[from].y-LOC[to].y))*450/Math.sqrt(speed),res:()=>{
+    C.loc=to;const h0=absH(C);passHours(C,.5);fix(C);showFrom=h0;showTo=absH(C);showT0=performance.now();actUntil=performance.now()+300/speed;cur=null;
+    if(inbox.length&&onPath&&!C.phone){sys('Рико заметил телефонную будку и прослушал автоответчик.');deliver('booth')}
+    if(gps===to)gps=null;missionArrive(to);save()}};
+}
+
+/* --- ручное управление --- */
+function setControl(on){
+  if(on&&!champ){sys('Сначала запусти эволюцию: Рико появится в городе.');return}
+  if(on===control)return;control=on;$('ctrl').setAttribute('aria-pressed',on);$('joy').hidden=!on;$('ctl').hidden=!on;
+  if(on){anim=null;actUntil=0;order=null;P3.x=lastP.x;P3.z=lastP.z;if(!onRoad(P3.x,P3.z)){const s=standPos(C.loc);P3.x=s.x;P3.z=s.z}
+    veh=C.car?'own':null;follow=true;$('follow').setAttribute('aria-pressed',true);
+    sys('Ты управляешь Рико: джойстик или WASD. У дверей появится кнопка «Войти», у машин — «Угнать».')}
+  else{const n=nearestLoc(P3.x,P3.z);C.loc=n.k;veh=null;joy.x=joy.y=0;sys('Рико снова живёт своим умом.')}
+  ctlState='';ctlButtons();
+}
+function nearCar(){if(!control||veh)return null;for(const t of TRAFFIC){const p=carXZ(t);if(Math.hypot(p.x-P3.x,p.z-P3.z)<3.6)return t}return null}
+let ctlState='';
+function ctlButtons(){const car=nearCar(),s=[ctlNear||'',car?1:0,veh||''].join('|');if(s===ctlState)return;ctlState=s;
+  $('bEnter').hidden=!ctlNear;if(ctlNear)$('bEnter').textContent='Войти: '+LOC[ctlNear].n;$('bSteal').hidden=!car;$('bExit').hidden=veh!=='stolen'}
+function controlTick(dt){
+  if(performance.now()<actUntil||anim){ctrlMoving=false;return}
+  const k=c=>keys[c]?1:0,ix=clamp(joy.x+k('KeyD')+k('ArrowRight')-k('KeyA')-k('ArrowLeft'),-1,1),iz=clamp(joy.y+k('KeyS')+k('ArrowDown')-k('KeyW')-k('ArrowUp'),-1,1);
+  const f=new THREE.Vector3();camera.getWorldDirection(f);f.y=0;f.normalize();
+  let mx=-f.z*ix-f.x*iz,mz=f.x*ix-f.z*iz;const len=Math.hypot(mx,mz);ctrlMoving=len>.08;
+  if(ctrlMoving){if(len>1){mx/=len;mz/=len}const sp=(veh?17:6.5)*dt,nx=P3.x+mx*sp,nz=P3.z+mz*sp;
+    if(onRoad(nx,nz)){P3.x=nx;P3.z=nz}else if(onRoad(nx,P3.z))P3.x=nx;else if(onRoad(P3.x,nz))P3.z=nz;P3.ry=Math.atan2(mx,mz)}
+  ctrlAcc+=dt*speed/15;
+  while(ctrlAcc>=1){ctrlAcc-=1;passHours(C,1);fix(C);showFrom=showTo=absH(C);
+    if(C.hour>=26||C.energy<=0){sys('Рико валится с ног. Управление вернулось к нему.');setControl(false);return}}
+  if(inbox.length&&!C.phone)for(const[x,y]of BOOTHS)if(Math.hypot(WX(x)+2.1-P3.x,WX(y)-2.1-P3.z)<3.5){sys('Рико зашёл в телефонную будку.');deliver('booth');break}
+  const n=nearestLoc(P3.x,P3.z),near=n.d<4.5?n.k:null;
+  if(near!==ctlNear){ctlNear=near;if(near){C.loc=near;missionArrive(near);if(gps===near){gps=null;sys('Вы прибыли.')}}}
+  ctlButtons();
+}
+function steal(){const t=nearCar();if(!t)return;veh='stolen';C.heat=Math.min(100,C.heat+35);C.rep+=2;spawnTraffic(t,true);
+  sys('Рико угнал машину! Розыск вырос.');push({who:'th',text:pick(['Прости, приятель, мне нужнее.','Ключи были в замке. Сам виноват.'])});ctlState='';ctlButtons()}
+
+/* --- трафик --- */
+const TRAFFIC=[],COPS=[];let beam=null;
+function mkCar(color,cop){const g=new THREE.Group();const b=new THREE.Mesh(new THREE.BoxGeometry(2.6,.8,1.3),new THREE.MeshLambertMaterial({color}));b.position.y=.55;b.castShadow=true;
+  const c=new THREE.Mesh(new THREE.BoxGeometry(1.3,.55,1.15),new THREE.MeshLambertMaterial({color:cop?0xffffff:0x2c2338}));c.position.set(-.15,1.2,0);g.add(b,c);
+  if(cop){const l1=new THREE.Mesh(new THREE.BoxGeometry(.3,.22,.5),new THREE.MeshBasicMaterial({color:0xff2040}));l1.position.set(-.15,1.58,-.3);
+    const l2=new THREE.Mesh(new THREE.BoxGeometry(.3,.22,.5),new THREE.MeshBasicMaterial({color:0x2060ff}));l2.position.set(-.15,1.58,.3);g.add(l1,l2);g.userData.l=[l1,l2]}
+  scene.add(g);return g}
+function spawnTraffic(t,far){t.ax=R()<.5?'x':'z';t.road=ROADS[(R()*6)|0];t.s=far?(R()<.5?-30:30):-30+R()*60;t.dir=R()<.5?1:-1;t.sp=6+R()*5}
+function carXZ(t){const lane=.85*t.dir;return t.ax==='x'?{x:t.s,z:t.road+lane}:{x:t.road-lane,z:t.s}}
+function trafficTick(dt){const k=Math.sqrt(speed)/1.7;for(const t of TRAFFIC){const prev=t.s;t.s+=t.dir*t.sp*dt*k;
+    for(const v of ROADS)if((prev-v)*(t.s-v)<0&&R()<.3){const r=t.road;t.ax=t.ax==='x'?'z':'x';t.road=v;t.s=r;t.dir=R()<.5?1:-1;break}
+    if(t.s>30.5){t.s=30.5;t.dir=-1}if(t.s<-30.5){t.s=-30.5;t.dir=1}
+    const p=carXZ(t);t.m.position.set(p.x,0,p.z);t.m.rotation.y=t.ax==='x'?(t.dir>0?0:Math.PI):(t.dir>0?-Math.PI/2:Math.PI/2)}}
+function copsTick(dt,now){
+  const st=stars(),want=st>=2?Math.min(3,st-1):0;
+  while(COPS.length<want){const c={m:mkCar(0x1d3557,true),x:0,z:0,vx:1,vz:0};const v=ROADS[(R()*6)|0];if(R()<.5){c.x=v;c.z=lastP.z>0?-30:30}else{c.z=v;c.x=lastP.x>0?-30:30}COPS.push(c);
+    if(COPS.length===1){sys('Полиция выехала за Рико!');if(C.phone&&R()<.6)push({who:'rico',text:pick(['Копы на хвосте! Куда бежать?','Сирены! Это за мной, да?']),call:true})}}
+  while(COPS.length>want){scene.remove(COPS.pop().m)}
+  let near=false;const sp=11*dt*Math.sqrt(speed)/1.4;
+  for(const c of COPS){const dx=lastP.x-c.x,dz=lastP.z-c.z,d=Math.hypot(dx,dz);if(d<26)near=true;
+    const onX=ROADS.some(v=>Math.abs(c.z-v)<1),onZ=ROADS.some(v=>Math.abs(c.x-v)<1);let mx=0,mz=0;
+    if(onX&&Math.abs(dz)<2.4)mx=Math.sign(dx);else if(onZ&&Math.abs(dx)<2.4)mz=Math.sign(dz);
+    else if(onX&&onZ){const tx=nr(lastP.x),tz=nr(lastP.z);if(Math.abs(c.x-tx)>.3&&(Math.abs(dx)>=Math.abs(dz)||Math.abs(c.z-tz)<.3))mx=Math.sign(tx-c.x);else if(Math.abs(c.z-tz)>.3)mz=Math.sign(tz-c.z);else mx=Math.sign(dx)}
+    else if(onX)mx=Math.sign(nr(lastP.x)-c.x)||Math.sign(dx);else if(onZ)mz=Math.sign(nr(lastP.z)-c.z)||Math.sign(dz);else{c.x=nr(c.x)}
+    c.x+=mx*sp;c.z+=mz*sp;if(mx||mz){c.vx=mx;c.vz=mz}
+    c.m.position.set(c.x,0,c.z);c.m.rotation.y=Math.atan2(-c.vz,c.vx);
+    const bl=Math.floor(now/180)%2;c.m.userData.l[0].visible=!!bl;c.m.userData.l[1].visible=!bl;
+    if(d<2.6&&st>=2&&champ){arrest();return}}
+  if(C.heat>0&&!near)C.heat=Math.max(0,C.heat-dt*speed*.6);
+}
+function arrest(){const st=stars(),fine=Math.min(Math.max(0,C.money),150*st);
+  if(control)setControl(false);anim=null;actUntil=0;order=null;veh=null;
+  C.money-=fine;C.heat=0;C.arrests++;C.mood=Math.max(0,C.mood-25);passHours(C,8,true);fix(C);if(C.hour>=24){C.day++;C.hour=Math.max(8,C.hour-24)}C.loc='home';
+  for(const c of COPS)scene.remove(c.m);COPS.length=0;tx(-fine,'Штраф полиции');showFrom=showTo=absH(C);
+  sys(`Рико арестовали! Штраф $${fine}, ночь в участке.`);callCheck('Арестован');save(true)}
+function initGta(){const cols=[0x3a86ff,0xe63946,0xf1faee,0x2a9d8f,0xffb703,0x8d99ae,0x6a4c93,0xff8fab];for(const col of cols){const t={m:mkCar(col,false)};spawnTraffic(t);TRAFFIC.push(t)}
+  beam=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,40,16,1,true),new THREE.MeshBasicMaterial({color:0xffd166,transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide}));beam.position.y=20;beam.visible=false;scene.add(beam)}
+function beamTick(now){if(!beam)return;const st=curStep(),t=gps||(st&&st[0]);beam.visible=!!t&&!!champ;if(t){const p=standPos(t);beam.position.x=p.x;beam.position.z=p.z;beam.material.opacity=.2+.12*Math.sin(now/300)}}
+
+/* --- HUD --- */
+let hudCache='';
+function hud(){const st=stars(),g=curStep();const s=[st,C.money,hhmm(showHour),g?g[1]:'',control?1:0].join('|');if(s===hudCache)return;hudCache=s;
+  $('hudStars').textContent='★'.repeat(st)+'☆'.repeat(5-st);$('hudStars').className='st'+(st?' on':'');
+  $('hudMoney').textContent=(C.money<0?'−$':'$')+Math.abs(C.money);$('hudTime').textContent=`День ${C.day} · ${hhmm(showHour)}`;$('hudGoal').textContent=g?'Задание: '+g[1]:''}
+
+/* --- ввод --- */
+window.addEventListener('keydown',e=>{if(!control||/INPUT|TEXTAREA/.test(document.activeElement&&document.activeElement.tagName||''))return;keys[e.code]=true;if(/^Arrow/.test(e.code))e.preventDefault();
+  if(e.code==='KeyE'&&ctlNear)$('bEnter').click();if(e.code==='KeyF'){if(veh==='stolen')$('bExit').click();else steal()}});
+window.addEventListener('keyup',e=>{keys[e.code]=false});
+(()=>{const J=$('joy'),K=J.firstElementChild;let id=null;
+  const mv=e=>{const r=J.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=(e.clientX-cx)/(r.width/2),y=(e.clientY-cy)/(r.height/2);const l=Math.hypot(x,y);if(l>1){x/=l;y/=l}
+    joy.x=x;joy.y=y;K.style.transform=`translate(${x*35}px,${y*35}px)`};
+  J.addEventListener('pointerdown',e=>{id=e.pointerId;J.setPointerCapture(id);mv(e)});J.addEventListener('pointermove',e=>{if(e.pointerId===id)mv(e)});
+  const up=e=>{if(e.pointerId!==id)return;id=null;joy.x=joy.y=0;K.style.transform=''};J.addEventListener('pointerup',up);J.addEventListener('pointercancel',up)})();
+$('ctrl').onclick=()=>setControl(!control);
+$('bEnter').onclick=()=>{if(!ctlNear)return;const r=stage.getBoundingClientRect();openMenu(ctlNear,stage.clientWidth/2-100,60)};
+$('bSteal').onclick=steal;$('bExit').onclick=()=>{veh=null;ctlState='';ctlButtons();sys('Рико бросил угнанную машину.')};
+
+/* --- телефон: приложения --- */
+let app='chat',unread=0;
+const CONTACTS=[['mom','Мама'],['leo','Лео'],['rosa','Роза'],['miguel','Мигель'],['grant','Офицер Грант'],['cobra','«Кобры»']];
+const GREET={mom:['Сынок, ты поел сегодня?','Я горжусь тобой. Только береги себя.'],leo:['Брат! Как жизнь?','Заглядывай в гараж, всегда рады.'],rosa:['Рико, золотце, ты голодный?','Заходи, оставлю тебе бургер.'],
+  miguel:['Чего звонишь? Соскучился по поражениям?','Трасса ждёт, если не струсил.'],grant:['Слушаю. Надеюсь, ты не влип.','Мне нужны люди, которые видят больше, чем говорят.'],cobra:['А, Рико. Есть дело, если не трус.','Район наш. Хочешь заработать — работай на нас.']};
+function openApp(a){app=a;document.querySelectorAll('#apps button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.app===a));
+  document.querySelectorAll('.app').forEach(v=>v.hidden=v.dataset.view!==a);if(a==='chat'){unread=0;$('msgs').scrollTop=1e9}renderApps(true)}
+document.querySelectorAll('#apps button').forEach(b=>b.onclick=()=>openApp(b.dataset.app));
+function renderApps(force){
+  const jb=document.querySelector('#apps [data-app="jobs"]');jb.textContent='Задания'+(MISSION?' •':'');
+  const cb=document.querySelector('#apps [data-app="chat"]');cb.textContent='Чат'+(unread?` (${unread})`:'');
+  if(app==='contacts'&&force)renderContacts();if(app==='jobs')renderJobs();if(app==='bank')renderBank();if(app==='map')drawMap();if(app==='radio'&&force)renderRadio();if(app==='cam'&&force)renderCam()}
+function renderContacts(){const box=$('contacts');box.innerHTML='';
+  if(!C.phone){box.innerHTML='<p class="note">У Рико нет телефона, звонить не с чего. Подари ему телефон с полки или дождись, пока купит сам.</p>';return}
+  for(const[id,n]of CONTACTS){const row=document.createElement('div');row.className='ct';row.innerHTML=`<div><b></b><div class="bar"><i class="t" style="width:${REL[id]}%"></i></div></div><button type="button">Позвонить</button>`;
+    row.querySelector('b').textContent=n;row.querySelector('button').onclick=()=>call(id,n);box.append(row)}}
+function call(id,n){const box=$('callbox');box.hidden=false;box.innerHTML='';const h=document.createElement('b');h.textContent='Звонок: '+n;box.append(h);
+  const say=document.createElement('p');let line=pick(GREET[id]);if(id==='cobra'&&C.gang>=60)line='Ты нам должен, Рико. Плати или пожалеешь.';if(id==='mom'&&C.heat>40)line='Сынок, ко мне приходила полиция. Что происходит?!';say.textContent='«'+line+'»';box.append(say);
+  const M=MISSIONS[id],btn=(t,f,cls)=>{const b=document.createElement('button');b.type='button';b.textContent=t;if(cls)b.className=cls;b.onclick=f;box.append(b)};
+  if(MISSION&&MISSION.id===id){const p=document.createElement('p');p.textContent='Ждёт, когда закончишь: «'+M.title+'».';box.append(p)}
+  else if(MISSION){const p=document.createElement('p');p.className='note';p.textContent='Сначала закончи текущее задание.';box.append(p)}
+  else if(DONE[id]===C.day){const p=document.createElement('p');p.className='note';p.textContent='Сегодня работы больше нет.';box.append(p)}
+  else if(M.need&&!M.need(C)){const p=document.createElement('p');p.className='note';p.textContent=M.needText;box.append(p)}
+  else{const p=document.createElement('p');const rw=M.reward;p.textContent=`Предлагает: «${M.title}». Награда: ${rw.money?'$'+rw.money:''}${rw.heat>0?' (но вырастет розыск)':''}${rw.mood?' хорошее настроение':''}${rw.heat<0?' + полиция отстанет':''}.`;box.append(p);
+    btn('Взять задание',()=>{acceptMission(id,'you');REL[id]=clamp(REL[id]+2,0,100);box.hidden=true;lexNote('order','friends')},'primary')}
+  btn('Положить трубку',()=>{box.hidden=true});REL[id]=clamp(REL[id]+1,0,100)}
+function renderJobs(){const box=$('jobs');let h='';
+  if(MISSION){const M=MISSIONS[MISSION.id];h+=`<div class="job"><b>${M.title}</b><small>от: ${M.from}</small><ol>`+M.steps.map((s,i)=>`<li class="${i<MISSION.step?'done':i===MISSION.step?'cur':''}">${s[1]}</li>`).join('')+'</ol><button type="button" id="jobCancel">Отказаться</button></div>'}
+  else h+='<p class="note">Активных заданий нет. Позвони кому-нибудь из контактов. Иногда Рико сам находит подработку.</p>';
+  const av=Object.keys(MISSIONS).filter(missionAvail);if(!MISSION&&av.length)h+='<p class="note">Работа есть у: '+av.map(id=>MISSIONS[id].from).join(', ')+'.</p>';
+  h+=`<p class="note">Выполнено сегодня: ${Object.values(DONE).filter(d=>d===C.day).length}.</p>`;
+  if(box.innerHTML!==h){box.innerHTML=h;const c=$('jobCancel');if(c)c.onclick=()=>{sys('Рико отказался от задания «'+MISSIONS[MISSION.id].title+'».');REL[MISSION.id]=clamp(REL[MISSION.id]-8,0,100);MISSION=null;renderApps(true);save(true)}}}
+function renderBank(){$('bal').textContent=(C.money<0?'−$':'$')+Math.abs(C.money);const h=TX.slice(-30).reverse().map(t=>`<li><span>д${t.d} ${hhmm(t.h)} · ${t.t.replace(/</g,'')}</span><b class="${t.a<0?'neg':''}">${t.a<0?'−':'+'}$${Math.abs(t.a)}</b></li>`).join('')||'<li><span>Операций пока нет</span></li>';if($('tx').innerHTML!==h)$('tx').innerHTML=h}
+const mm=$('minimap'),mctx=mm.getContext('2d');
+const MX=x=>16+(x+32)/64*268;
+function drawMap(){const d=window.devicePixelRatio||1;if(mm.width!==300*d){mm.width=300*d;mm.height=300*d}mctx.setTransform(d,0,0,d,0,0);
+  mctx.fillStyle='#1b4d5c';mctx.fillRect(0,0,300,300);mctx.fillStyle='#b89d6a';mctx.fillRect(MX(-46),MX(-46),MX(46)-MX(-46),MX(46)-MX(-46));mctx.fillStyle='#3a2f45';mctx.fillRect(MX(-37),MX(-37),MX(37)-MX(-37),MX(37)-MX(-37));
+  mctx.strokeStyle='#15101c';mctx.lineWidth=7;for(const v of ROADS){mctx.beginPath();mctx.moveTo(MX(v),MX(-31));mctx.lineTo(MX(v),MX(31));mctx.stroke();mctx.beginPath();mctx.moveTo(MX(-31),MX(v));mctx.lineTo(MX(31),MX(v));mctx.stroke()}
+  mctx.font='600 9px "Golos Text",sans-serif';mctx.textAlign='center';
+  for(const k in LOC){const p=standPos(k);mctx.fillStyle=LOC[k].c;mctx.beginPath();mctx.arc(MX(p.x),MX(p.z),5,0,7);mctx.fill();mctx.fillStyle='#f3ebe6';mctx.fillText(LOC[k].n.replace(/«|»/g,''),MX(p.x),MX(p.z)-8)}
+  const st=curStep(),t=gps||(st&&st[0]);if(t){const p=standPos(t);mctx.strokeStyle='#ffd166';mctx.lineWidth=2;mctx.beginPath();mctx.arc(MX(p.x),MX(p.z),9+Math.sin(performance.now()/250)*2,0,7);mctx.stroke()}
+  for(const c of COPS){mctx.fillStyle='#ff2040';mctx.fillRect(MX(c.x)-3,MX(c.z)-3,6,6)}
+  mctx.fillStyle='#ff8a4c';mctx.strokeStyle='#fff';mctx.lineWidth=2;mctx.beginPath();mctx.arc(MX(lastP.x),MX(lastP.z),5.5,0,7);mctx.fill();mctx.stroke()}
+mm.addEventListener('click',e=>{const r=mm.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*300,y=(e.clientY-r.top)/r.height*300;let b=null,bd=22;
+  for(const k in LOC){const p=standPos(k),d=Math.hypot(MX(p.x)-x,MX(p.z)-y);if(d<bd){bd=d;b=k}}if(!b||!champ)return;
+  if(control){gps=b;sys('GPS: маршрут до «'+LOC[b].n+'».')}else{order={goto:b};push({who:'me',text:'(GPS: отправил Рико в «'+LOC[b].n+'»)'})}drawMap()});
+/* радио */
+let AC=null,radio=null;
+const STATIONS=[{id:'port',n:'Порт FM',d:'ленивые аккорды у моря'},{id:'lot',n:'Пустырь Бит',d:'бочка, хэт и бас'},{id:'wave',n:'Волна 88',d:'ночной синтвейв'}];
+function radioPlay(id){radioStop();if(!id)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();AC.resume()}catch(e){sys('Звук недоступен в этом браузере.');return}
+  const out=AC.createGain();out.gain.value=.2;out.connect(AC.destination);const st={id,out,step:0,next:AC.currentTime+.05};
+  const bpm=id==='lot'?96:id==='wave'?104:78,spb=60/bpm/4,prog=[[57,60,64,67],[50,53,57,60],[55,59,62,65],[48,52,55,59]],hz=m=>440*Math.pow(2,(m-69)/12);
+  const tone=(f,t,d,type,v)=>{const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);g.connect(out);o.start(t);o.stop(t+d+.05)};
+  const kick=t=>{const o=AC.createOscillator(),g=AC.createGain();o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(40,t+.15);g.gain.setValueAtTime(.9,t);g.gain.exponentialRampToValueAtTime(.001,t+.3);o.connect(g);g.connect(out);o.start(t);o.stop(t+.32)};
+  let nb=null;const noise=(t,d,v,hp)=>{if(!nb){nb=AC.createBuffer(1,AC.sampleRate*.5,AC.sampleRate);const a=nb.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1}
+    const s=AC.createBufferSource();s.buffer=nb;const f=AC.createBiquadFilter();f.type='highpass';f.frequency.value=hp;const g=AC.createGain();g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);s.connect(f);f.connect(g);g.connect(out);s.start(t);s.stop(t+d)};
+  const sched=()=>{while(st.next<AC.currentTime+.25){const s=st.step%16,ch=prog[Math.floor(st.step/16)%4],t=st.next;
+      if(id==='port'){if(s===0)ch.forEach(m=>tone(hz(m),t,spb*15,'triangle',.06));if(s===0||s===8)kick(t);if(s%4===2)noise(t,.05,.06,7000);if(s===6||s===14)tone(hz(ch[(s>>1)%4]+12),t,spb*2,'sine',.08)}
+      else if(id==='lot'){if(s%4===0)kick(t);if(s===4||s===12)noise(t,.18,.3,1500);if(s%2===0)noise(t,.03,.1,8000);if(s%4===0||s===10)tone(hz(ch[0]-12),t,spb*1.6,'sawtooth',.1)}
+      else{tone(hz(ch[s%4]+12),t,spb*.9,'square',.03);if(s===0)ch.forEach(m=>tone(hz(m),t,spb*16,'sawtooth',.02));if(s%8===0)kick(t);if(s===4||s===12)noise(t,.15,.18,2000)}
+      st.next+=spb;st.step++}};
+  st.timer=setInterval(sched,50);sched();radio=st;renderRadio()}
+function radioStop(){if(radio){clearInterval(radio.timer);try{radio.out.disconnect()}catch(e){}radio=null}renderRadio()}
+function renderRadio(){const box=$('stations');box.innerHTML='';for(const s of STATIONS){const b=document.createElement('button');b.type='button';b.className='stn';b.setAttribute('aria-pressed',!!radio&&radio.id===s.id);
+    b.innerHTML='<b></b><small></small>';b.firstChild.textContent=s.n;b.lastChild.textContent=radio&&radio.id===s.id?'играет · нажми, чтобы выключить':s.d;b.onclick=()=>radio&&radio.id===s.id?radioStop():radioPlay(s.id);box.append(b)}}
+/* камера */
+function snap(){if(!ok3d)return;const src=renderer.domElement,c=document.createElement('canvas'),w=480,h=Math.round(src.height/src.width*480);c.width=w;c.height=h;c.getContext('2d').drawImage(src,0,0,w,h);
+  PHOTOS.unshift({u:c.toDataURL('image/jpeg',.72),d:C.day,h:C.hour});if(PHOTOS.length>8)PHOTOS.pop();renderCam();save(true)}
+function renderCam(){const g=$('gallery');g.innerHTML='';if(!PHOTOS.length){g.innerHTML='<p class="note">Снимков пока нет. Фото сохраняются в этом браузере, а на iPhone их можно сохранить себе долгим нажатием.</p>';return}
+  for(const p of PHOTOS){const f=document.createElement('figure');const i=document.createElement('img');i.src=p.u;i.alt='Снимок Порт-Сола, день '+p.d;const c=document.createElement('figcaption');c.textContent=`день ${p.d} · ${hhmm(p.h)}`;f.append(i,c);g.append(f)}}
+$('snap').onclick=snap;
+
 /* ================= кадр ================= */
 function frame(now){
   if(evoOn){if($('turbo').checked){const t0=performance.now();while(performance.now()-t0<30)evolveOnce()}else if(now-lastEvo>350){lastEvo=now;evolveOnce()}}
-  cityTick(now);npcTick(now);
+  const dt=Math.min(.1,(now-(lastFrame||now))/1000);lastFrame=now;
+  cityTick(now);npcTick(now);if(ok3d&&champ){if(control)controlTick(dt);trafficTick(dt);copsTick(dt,now);beamTick(now)}else if(ok3d)trafficTick(dt);hud();
   const dur=Math.max(1,actUntil-showT0);showHour=showFrom+(showTo-showFrom)*clamp((now-showT0)/dur,0,1);
   if(shopSign&&C.shop!==shopSign.userData.s){shopSign.userData.s=C.shop}
   render3d(now);
@@ -802,6 +1060,7 @@ function bar(l,v,max,cls,txt){return `<span>${l}</span><div class="bar"><i class
 const lv=v=>v<25?'crit':v<45?'warn':'';
 let lastItemsDay=-1,lastChamp=null;
 function renderPanels(){
+  renderApps();
   $('k-gen').textContent=gen.toLocaleString('ru-RU');const last=hist[hist.length-1];
   $('k-best').textContent=last?Math.round(last.b):'—';$('k-avg').textContent=last?Math.round(last.a):'—';$('k-champ').textContent=champ?Math.round(champFit):'—';
   const m=$('money');m.textContent=(C.money<0?'−$':'$')+Math.abs(C.money);m.className='money'+(C.money<0?' neg':'');
@@ -819,11 +1078,11 @@ const encG=g=>{const u=new Uint8Array(g.buffer);let s='';for(const b of u)s+=Str
 const decG=s=>{const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new Float32Array(u.buffer)};
 let saveT=0;
 function save(force){const now=Date.now();if(!force&&now-saveT<5000)return;saveT=now;
-  try{localStorage.setItem(KEY,JSON.stringify({gen,hist:hist.slice(-1500),pop:pop.map(encG),champ:champ&&encG(champ),champFit,C,chat:chat.slice(-120),inbox:inbox.map(m=>chat.indexOf(m)),bias:Array.from(cBias),cBiasUntil,MIND,mindMode,LEX}))}catch(e){}}
+  try{localStorage.setItem(KEY,JSON.stringify({gen,hist:hist.slice(-1500),pop:pop.map(encG),champ:champ&&encG(champ),champFit,C,chat:chat.slice(-120),inbox:inbox.map(m=>chat.indexOf(m)),bias:Array.from(cBias),cBiasUntil,MIND,mindMode,LEX,gta:{MISSION,REL,DONE,TX:TX.slice(-80),PHOTOS,lastMorningDay}}))}catch(e){}}
 function load(){try{const t=localStorage.getItem(KEY);if(!t)return false;const o=JSON.parse(t);
   if(!o.pop||o.pop.length!==POP||decG(o.pop[0]).length!==NA*NF)return false;
   gen=o.gen;hist=o.hist;pop=o.pop.map(decG);champ=o.champ?decG(o.champ):null;champFit=o.champFit;notifiedFit=champFit;C=Object.assign(newEnv(),o.C);chat=o.chat||[];
-  inbox=(o.inbox||[]).map(i=>chat[i]).filter(Boolean);cBias=Float32Array.from(o.bias||new Array(NA).fill(0));cBiasUntil=o.cBiasUntil||0;Object.assign(MIND,o.MIND||{});mindMode=o.mindMode||'ai';if(o.LEX)Object.assign(LEX,o.LEX);showFrom=showTo=absH(C);return true}catch(e){return false}}
+  inbox=(o.inbox||[]).map(i=>chat[i]).filter(Boolean);cBias=Float32Array.from(o.bias||new Array(NA).fill(0));cBiasUntil=o.cBiasUntil||0;Object.assign(MIND,o.MIND||{});mindMode=o.mindMode||'ai';if(o.LEX)Object.assign(LEX,o.LEX);if(o.gta){MISSION=o.gta.MISSION||null;Object.assign(REL,o.gta.REL||{});Object.assign(DONE,o.gta.DONE||{});TX=o.gta.TX||[];PHOTOS=o.gta.PHOTOS||[];lastMorningDay=o.gta.lastMorningDay||0}showFrom=showTo=absH(C);return true}catch(e){return false}}
 
 /* ================= кнопки ================= */
 function setEvo(on){evoOn=on;$('evo').textContent=on?'Пауза эволюции':(gen?'Продолжить эволюцию':'Запустить эволюцию');$('evo').classList.toggle('primary',!on)}
@@ -833,16 +1092,16 @@ $('follow').onclick=()=>{follow=!follow;$('follow').setAttribute('aria-pressed',
 let armed=false;
 $('reset').onclick=()=>{if(!armed){armed=true;$('reset').textContent='Точно? Ещё раз';setTimeout(()=>{armed=false;$('reset').textContent='Всё заново'},3000);return}
   armed=false;$('reset').textContent='Всё заново';initPop();C=newEnv();chat=[];inbox=[];cBias.fill(0);cBiasUntil=0;anim=null;actUntil=0;cur=null;order=null;showFrom=showTo=absH(C);
-  Object.assign(MIND,{trust:40,name:'',facts:[],gifts:[],giftDay:{}});Object.assign(LEX,{letters:{},words:{},bi:{},assoc:{},isa:{},nota:{},disp:{},heard:0,recent:[]});lexDirty=true;notifiedFit=-1e9;rerenderChat();setEvo(false);save(true);renderPanels();sys('Новая жизнь. Запусти эволюцию.')};
+  Object.assign(MIND,{trust:40,name:'',facts:[],gifts:[],giftDay:{}});Object.assign(LEX,{letters:{},words:{},bi:{},assoc:{},isa:{},nota:{},disp:{},heard:0,recent:[]});MISSION=null;TX=[];for(const k in DONE)delete DONE[k];if(control)setControl(false);gps=null;lexDirty=true;notifiedFit=-1e9;rerenderChat();setEvo(false);save(true);renderPanels();sys('Новая жизнь. Запусти эволюцию.')};
 window.addEventListener('pagehide',()=>save(true));
 
 if(!load())initPop();
 if(!window.claude)document.querySelector('.mode[data-m="claude"]').hidden=true;
-setMode(mindMode);init3d();rerenderChat();setEvo(false);renderPanels();
+setMode(mindMode);init3d();if(ok3d)initGta();rerenderChat();setEvo(false);renderPanels();
 if(!chat.length)sys('Запусти эволюцию: лучший клон Рико появится в городе. Потом нажимай на здания, передавай вещи и пиши ему.');
 setInterval(renderPanels,300);requestAnimationFrame(frame);
 (async()=>{try{sample=window.claude?await window.claude.use('sample'):null}catch(e){sample=null}if(!sample&&mindMode==='claude')setMode('own')})();
-window.__t={evolveOnce,get gen(){return gen},get C(){return C},mindReply,get champ(){return champ}};
+window.__t={gta:()=>({P3,lastP,control,MISSION,COPS:COPS.length,heat:C.heat,loc:C.loc,ctlNear}),evolveOnce,get gen(){return gen},get C(){return C},mindReply,get champ(){return champ}};
 })();
 </script>
 
