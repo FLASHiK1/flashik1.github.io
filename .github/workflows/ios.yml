@@ -1,0 +1,87 @@
+name: iOS IPA
+
+on:
+  push:
+    branches: [main, claude/practical-brown-3zz5le]
+    paths: ['ios/**', 'rico/**', '.github/workflows/ios.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      LLAMA_TAG: b12248
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode
+        run: xcodebuild -version
+
+      - name: llama.cpp xcframework
+        run: |
+          set -e
+          mkdir -p ios/Frameworks && cd ios/Frameworks
+          if curl -fsSL -o llama.zip "https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_TAG}/llama-${LLAMA_TAG}-xcframework.zip"; then
+            unzip -q llama.zip
+            if [ -d build-apple/llama.xcframework ]; then mv build-apple/llama.xcframework .; fi
+          fi
+          if [ ! -d llama.xcframework ]; then
+            echo "Готового xcframework нет, собираю llama.cpp сам"
+            git clone --depth 1 --branch "$LLAMA_TAG" https://github.com/ggml-org/llama.cpp /tmp/llama.cpp
+            (cd /tmp/llama.cpp && ./build-xcframework.sh ios-device)
+            cp -R /tmp/llama.cpp/build-apple/llama.xcframework .
+          fi
+          ls llama.xcframework
+
+      - name: Web assets
+        run: |
+          set -e
+          mkdir -p ios/Rico/web
+          cp rico/index.html ios/Rico/web/index.html
+          cd /tmp && npm pack three@0.147.0 --silent && tar xzf three-0.147.0.tgz && cd -
+          cp /tmp/package/build/three.min.js ios/Rico/web/three.min.js
+          cp /tmp/package/examples/js/controls/OrbitControls.js ios/Rico/web/OrbitControls.js
+          sed -i '' 's#https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js#three.min.js#; s#https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js#OrbitControls.js#' ios/Rico/web/index.html
+          grep -c 'src="three.min.js"' ios/Rico/web/index.html
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          cd ios && xcodegen generate
+
+      - name: Build
+        run: |
+          set -o pipefail
+          cd ios
+          xcodebuild -project Rico.xcodeproj -scheme Rico -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build | tail -80
+
+      - name: Package IPA
+        run: |
+          set -e
+          cd ios
+          APP=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -1)
+          echo "App: $APP"
+          rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
+          zip -qry Rico.ipa Payload
+          ls -lh Rico.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Rico-ipa
+          path: ios/Rico.ipa
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="rico-ipa-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" ios/Rico.ipa \
+            --title "Рико для iPhone, сборка ${GITHUB_RUN_NUMBER}" \
+            --notes "Неподписанный IPA. Установка через ESign: скачай Rico.ipa, открой в ESign, подпиши и установи. Модель .gguf положи в «Файлы» → «На iPhone» → «Рико» или выбери в игре кнопкой «Выбрать файл модели»." \
+            --prerelease --target "$GITHUB_SHA"

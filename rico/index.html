@@ -151,6 +151,7 @@ ul.plan,ol.plan,ul.mem{margin:0;padding-left:18px;font-size:13px;display:flex;fl
       <button type="button" class="spd" data-s="1">×1</button>
       <button type="button" class="spd" data-s="3" aria-pressed="true">×3</button>
       <button type="button" class="spd" data-s="10">×10</button>
+      <button id="amn" type="button" aria-pressed="false">Амнезия</button>
       <button id="ctrl" type="button" aria-pressed="false" class="hot">Управлять Рико</button>
       <button id="follow" type="button" aria-pressed="false">Камера за Рико</button>
       <button id="snd" type="button" aria-pressed="true">Звук: вкл</button>
@@ -173,6 +174,7 @@ ul.plan,ol.plan,ul.mem{margin:0;padding-left:18px;font-size:13px;display:flex;fl
       <div class="app" data-view="chat">
       <div class="mindsw"><button type="button" class="mode" data-m="ai" aria-pressed="false">Нейросеть</button><button type="button" class="mode" data-m="learn" aria-pressed="false">Учится говорить</button><button type="button" class="mode" data-m="own" aria-pressed="true">Свой разум</button><button type="button" class="mode" data-m="claude" aria-pressed="false">Claude</button><span class="trust" id="trust">доверие 40</span></div>
       <div class="aibox" id="aiBox" hidden>
+        <div id="ai-native" class="aibtns" hidden></div>
         <div id="ai-load">
           <b>Мозг-нейросеть прямо на телефоне</b>
           <p>Модель работает у тебя, без интернета и без Claude. Подойдут файлы <code>.gguf</code> размером до 2 ГБ (модели 1–3B, Q4).</p>
@@ -404,26 +406,27 @@ let C=newEnv(),cBias=new Float32Array(NA),cBiasUntil=0,speed=3,chat=[],inbox=[],
 let anim=null,actUntil=0,cur=null,order=null,showFrom=absH(C),showTo=absH(C),showT0=0,showHour=8,lastEvo=0;
 let mindMode='ai',sample=null;
 const MIND={trust:40,name:'',facts:[],gifts:[],giftDay:{}};
-let notifiedFit=-1e9;
+let notifiedFit=-1e9,orderBy='',amnArmed=false;
 function onNewChamp(){if(gen>1&&champFit-notifiedFit>=15){notifiedFit=champFit;sys(`Мозг Рико обновился: поколение ${gen}, оценка ${Math.round(champFit)}.`)}}
 
 function cityTick(now){
-  if(!champ)return;
+  if(!champ&&!AMN.on)return;
   if(anim)return;
   if(now<actUntil&&!order)return;
   if(cBiasUntil&&absH(C)>=cBiasUntil){cBias.fill(0);cBiasUntil=0}
   planTick();
   if(order&&typeof order==='object'){const to=order.goto;order=null;gotoLoc(to,now);return}
-  if(!order&&!control&&MISSION&&C.food>20&&C.energy>15&&C.health>30&&C.hour<25&&R()<.6){const st=curStep();if(st&&st[0]!==C.loc){push({who:'th',text:'Задание: '+st[1]+'.'});gotoLoc(st[0],now);return}else if(st)missionArrive(C.loc)}
+  if(AMN.on&&!order&&!control){amnTick(now);if(!order)return;if(typeof order==='object'){const to=order.goto;order=null;gotoLoc(to,now);return}}
+  if(!AMN.on&&!order&&!control&&MISSION&&C.food>20&&C.energy>15&&C.health>30&&C.hour<25&&R()<.6){const st=curStep();if(st&&st[0]!==C.loc){push({who:'th',text:'Задание: '+st[1]+'.'});gotoLoc(st[0],now);return}else if(st)missionArrive(C.loc)}
   if(control&&!order)return;
   let a,byUser=false;
-  if(order){a=order;order=null;byUser=true;if(!allowed(C,a)){push({who:'rico',text:'Не выходит: на это сейчас нет денег или нет условий.'});return}}
+  if(order){a=order;order=null;byUser=orderBy!=='amn';orderBy='';if(!allowed(C,a)){push({who:'rico',text:'Не выходит: на это сейчас нет денег или нет условий.'});return}}
   else a=decide(C,champ,cBias,.15);
   const id=AIDS[a];
-  if(byUser)push({who:'th',text:'Голос попросил. '+ACT[id].line});else thought(a);
+  if(byUser)push({who:'th',text:'Голос попросил. '+ACT[id].line});else if(champ&&!AMN.on)thought(a);
   const from=C.loc,to=ACT[id].loc;
   const go=()=>{
-    const ev=[],h0=absH(C),m0=C.money,hp0=C.health;step(C,a,ev);armorAbsorb(hp0);cur=id;tx(C.money-m0,ACT[id].n);missionArrive(C.loc);ricoMorning();
+    const ev=[],h0=absH(C),m0=C.money,hp0=C.health;step(C,a,ev);armorAbsorb(hp0);cur=id;amnObserve(id);if(AMN.on&&!AMN.known[C.loc])learnPlace(C.loc);tx(C.money-m0,ACT[id].n);missionArrive(C.loc);ricoMorning();
     if(control){const sp=standPos(C.loc);P3.x=sp.x;P3.z=sp.z}
     for(const x of ev){sys2(x.t,x.c);callCheck(x.t)}
     npcTalk();
@@ -467,7 +470,7 @@ const CALLS={ms:t=>{const g=t.replace('Цель выполнена: ','').replac
 function callCheck(t){newsFromEvent(t);let k=null;
   if(/^Цель выполнена/.test(t))k='ms';else if(/Арестован/.test(t))k='arrest';else if(/«Кобры» (разгромили|угнали|подкараулили)/.test(t))k='gang';
   else if(/поставил «Кобр»/.test(t))k='win';else if(/очнулся в больнице/.test(t))k='hospital';
-  if(!k||!C.phone)return;if(k!=='ms'&&k!=='win'&&lastCallDay===C.day)return;lastCallDay=C.day;
+  if(AMN.on&&k==='ms')return;if(!k||!C.phone)return;if(k!=='ms'&&k!=='win'&&lastCallDay===C.day)return;lastCallDay=C.day;
   if(mindMode==='ai'&&AI.ready&&!AI.busy){aiProactive(t);return}
   push({who:'rico',text:pick(CALLS[k](t)),call:true});ring()}
 function ring(){const ph=document.querySelector('.phone');ph.classList.remove('ring');void ph.offsetWidth;ph.classList.add('ring')}
@@ -593,7 +596,7 @@ function renderLex(){
 /* ================= чат ================= */
 function push(m){m.d=C.day;m.h=C.hour;chat.push(m);if(chat.length>160)chat.splice(0,chat.length-160);renderMsg(m);if(app!=='chat'&&(m.who==='rico'||m.who==='sys')){unread++;renderApps()}}
 function sys(t){push({who:'sys',text:t});memHook(t)}
-function sys2(t,c){if(c==='big'||/Цель|Кобр|Арестован|больнице/.test(t))push({who:'sys',text:t})}
+function sys2(t,c){if(AMN.on&&/^Цель выполнена/.test(t))return;if(c==='big'||/Цель|Кобр|Арестован|больнице/.test(t))push({who:'sys',text:t})}
 function renderMsg(m){
   if(m.who==='th'&&!$('thoughts').checked)return;
   const box=$('msgs'),d=document.createElement('div');d.className='m '+m.who;d.textContent=m.text;
@@ -648,7 +651,7 @@ const WLL_WASM='https://cdn.jsdelivr.net/npm/@wllama/wllama@3.8.1/src/wasm/wllam
 const HFM={q15:{repo:'Qwen/Qwen2.5-1.5B-Instruct-GGUF',file:'qwen2.5-1.5b-instruct-q4_k_m.gguf',n:'Qwen2.5 1.5B'},q3:{repo:'bartowski/Qwen2.5-3B-Instruct-GGUF',file:'Qwen2.5-3B-Instruct-Q4_K_M.gguf',n:'Qwen2.5 3B'}};
 const AI={w:null,ready:false,busy:false,name:'',lastReflectDay:0};
 function aiStatus(t,isErr){const s=$('ai-st');s.textContent=t;s.style.color=isErr?'var(--bad)':''}
-function aiUI(){$('aiBox').hidden=!(mindMode==='ai');$('ai-load').hidden=AI.ready;$('ai-ok').hidden=!AI.ready;if(AI.ready)$('ai-name').textContent=AI.name}
+function aiUI(){$('aiBox').hidden=!(mindMode==='ai');$('ai-native').hidden=!NATIVE;$('ai-load').hidden=AI.ready||NATIVE;$('ai-ok').hidden=!AI.ready;if(AI.ready)$('ai-name').textContent=AI.name}
 async function aiInit(){
   if(AI.w)return AI.w;
   const mod=await import(WLL);
@@ -718,11 +721,12 @@ async function aiChat(msgs){
   const hist=[];for(const m of chat.filter(m=>(m.who==='me'||m.who==='rico')&&!msgs.includes(m)).slice(-6))hist.push({role:m.who==='me'?'user':'assistant',content:m.who==='me'?m.text:JSON.stringify({reply:m.text})});
   const text=msgs.map(m=>m.text).join('\n');
   const schema={type:'object',properties:{reply:{type:'string'},thought:{type:'string'},mood:{type:'string',enum:['рад','спокоен','злой','грустный','устал','боится']},action:{type:'string',enum:actEnum()}},required:['reply','thought','mood','action']};
+  if(AMN.on){const ao=amnOptions().concat('none');schema.properties.action={type:'string',enum:ao};schema.properties.name={type:'string'}}
   const bub={who:'rico',text:'…'};push(bub);const el=$('msgs').lastElementChild;
-  const o=await llm([{role:'system',content:PERSONA},...hist,{role:'user',content:ctxBlock(text)+'\n\nСООБЩЕНИЕ ОТ ГОЛОСА: '+text}],schema,220,t=>{const r=liveReply(t);if(r&&el&&el.firstChild){el.firstChild.textContent=r;$('msgs').scrollTop=1e9}});
+  const o=await llm([{role:'system',content:AMN.on?AMN_PERSONA+' Сейчас тебе по телефону пишет незнакомый «голос». Если голос называет твоё имя и ты ему веришь, запиши его в поле name, иначе оставь name пустым. В action можешь выбрать вариант действия или none.':PERSONA},...hist,{role:'user',content:(AMN.on?amnCtx(text)+'\nВАРИАНТЫ: '+amnOptions().map(x=>x+' = '+optLabel(x)).join('; '):ctxBlock(text))+'\n\nСООБЩЕНИЕ ОТ ГОЛОСА: '+text}],schema,220,t=>{const r=liveReply(t);if(r&&el&&el.firstChild){el.firstChild.textContent=r;$('msgs').scrollTop=1e9}});
   const reply=String(o.reply||'…').slice(0,400);bub.text=reply;if(el&&el.firstChild)el.firstChild.textContent=reply;
   remember('chat','Голос: «'+text.slice(0,90)+'». Я ответил: «'+reply.slice(0,80)+'»',3);
-  const did=execAction(o.action,'chat');if(o.mood){AI.mood=String(o.mood);brainDirty=true}
+  let did='';if(AMN.on){if(o.action&&o.action!=='none'){did=optLabel(o.action);amnExec(o.action,performance.now())}if(o.name&&String(o.name).trim()&&!AMN.name){AMN.name=String(o.name).trim().slice(0,30);sys('Он решил, что его зовут '+AMN.name+'.');remember('event','Голос сказал, что меня зовут '+AMN.name,7)}}else did=execAction(o.action,'chat');if(o.mood){AI.mood=String(o.mood);brainDirty=true}
   if(/дурак|идиот|туп|лох|урод/.test(text.toLowerCase()))trust(-6);else trust(1);
   return{r:reply,th:(o.thought?String(o.thought):'')+(did?` (${did})`:''),streamed:true};
 }
@@ -774,7 +778,7 @@ const ITEMS=[
   {id:'car',n:'Ключи от тачки',d:'своя машина',once:e=>e.car,use:(e,ev)=>{e.car=true;mile(e,'car',ev)},say:['ЭТО МНЕ?! Ты лучший.']},
 ];
 function renderItems(){const box=$('items');box.innerHTML='';for(const it of ITEMS){const b=document.createElement('button');b.type='button';
-  const used=MIND.giftDay[it.id]===C.day,own=it.once&&it.once(C);b.disabled=used||own||!champ;
+  const used=MIND.giftDay[it.id]===C.day,own=it.once&&it.once(C);b.disabled=used||own||(!champ&&!AMN.on);
   b.innerHTML=`<b></b><small></small>`;b.firstChild.textContent=it.n;b.lastChild.textContent=own?'уже есть':used?'завтра снова':it.d;
   b.onclick=()=>give(it);box.append(b)}}
 function give(it){
@@ -876,7 +880,7 @@ function render3d(now){
     if(k>=1){const r=anim.res;anim=null;r()}}
   else if(control){p={x:P3.x,z:P3.z};moving=ctrlMoving;ricoObj.rotation.y=P3.ry}
   else{const a=W3(C.loc),l=LOC[C.loc];p={x:a.x+(l.x<5?1.8:-1.8),z:a.z+(l.y<5?1.8:-1.8)}}
-  lastP=p;const useCar=control&&!anim?!!veh:(moving&&C.car);carObj.visible=useCar;ricoObj.visible=!!champ&&!useCar;
+  lastP=p;const useCar=control&&!anim?!!veh:(moving&&C.car);carObj.visible=useCar;ricoObj.visible=(!!champ||AMN.on)&&!useCar;
   ricoObj.position.set(p.x,moving?Math.abs(Math.sin(now/110))*.15:0,p.z);carObj.position.set(p.x,0,p.z);carObj.rotation.y=ricoObj.rotation.y-Math.PI/2;
   ricoLight.position.set(p.x,4,p.z);
   NPCS.forEach((o,i)=>{const ob=npcObjs[i];let q;if(o.anim){const k=Math.min(1,(now-o.anim.t0)/o.anim.dur);q=lpath(o.anim.from,o.anim.to,k);
@@ -886,7 +890,7 @@ function render3d(now){
   controls.update();renderer.render(scene,camera);
 }
 function openMenu(loc,x,y){const m=$('menu');m.innerHTML='';const t=document.createElement('b');t.textContent=LOC[loc].n;m.append(t);
-  if(!champ){const s=document.createElement('small');s.textContent='Сначала запусти эволюцию: Рико появится в городе.';m.append(s)}
+  if(!champ&&!AMN.on){const s=document.createElement('small');s.textContent='Сначала запусти эволюцию или «Амнезию».';m.append(s)}
   else{let any=false;AIDS.forEach((id,i)=>{if(ACT[id].loc!==loc)return;any=true;const b=document.createElement('button');b.type='button';
     const okA=allowed(C,i);b.textContent=ACT[id].n+(ACT[id].cost?` · $${ACT[id].cost}`:'');b.disabled=!okA;if(!okA)b.title='Сейчас недоступно';
     b.onclick=()=>{order=i;lexNote('order',id);closeMenu();push({who:'me',text:`(отправил Рико: ${ACT[id].n})`});};m.append(b)});
@@ -930,23 +934,23 @@ function finishMission(){const id=MISSION.id,M=MISSIONS[id],rw=M.reward;MISSION=
   if(M.chance&&R()>M.chance){REL[id]=clamp(REL[id]-5,0,100);sys(`Задание «${M.title}» провалено.`);push({who:'rico',text:'Не вышло. '+(M.fail||''),call:true});ring();return}
   const m0=C.money;C.money+=(rw.money||0)-(rw.cost||0);C.rep+=rw.rep||0;C.mood+=rw.mood||0;C.heat+=rw.heat||0;C.gang=clamp(C.gang+(rw.gang||0),0,100);fix(C);tx(C.money-m0,'Задание: '+M.title);
   REL[id]=clamp(REL[id]+10,0,100);sys(`Задание «${M.title}» выполнено!${rw.money?' +$'+rw.money:''}`);push({who:'rico',text:M.done,call:true});ring();save(true)}
-function ricoMorning(){if(C.day===lastMorningDay||C.hour>=12)return;lastMorningDay=C.day;
+function ricoMorning(){if(AMN.on)return;if(C.day===lastMorningDay||C.hour>=12)return;lastMorningDay=C.day;
   if(MISSION||mindMode==='ai'||R()>.35)return;const av=Object.keys(MISSIONS).filter(missionAvail).filter(id=>id!=='cobra'||C.money<100||R()<.3);if(av.length)acceptMission(pick(av),'rico')}
 
 /* --- переход «просто пойти» --- */
 function gotoLoc(to,now){
   if(control){gps=to;sys('GPS: маршрут до «'+LOC[to].n+'».');return}
   if(C.loc===to){missionArrive(to);actUntil=now+300/speed;return}
-  const from=C.loc,onPath=boothOnPath(from,to);push({who:'th',text:'Иду: '+LOC[to].n+'.'});
+  const from=C.loc,onPath=boothOnPath(from,to);push({who:'th',text:'Иду: '+(AMN.on?amnName(to):LOC[to].n)+'.'});
   anim={from,to,t0:now,dur:(Math.abs(LOC[from].x-LOC[to].x)+Math.abs(LOC[from].y-LOC[to].y))*450/Math.sqrt(speed),res:()=>{
     C.loc=to;const h0=absH(C);passHours(C,.5);fix(C);showFrom=h0;showTo=absH(C);showT0=performance.now();actUntil=performance.now()+300/speed;cur=null;
     if(inbox.length&&onPath&&!C.phone){sys('Рико заметил телефонную будку и прослушал автоответчик.');deliver('booth')}
-    if(gps===to)gps=null;missionArrive(to);save()}};
+    if(gps===to)gps=null;missionArrive(to);if(AMN.on)learnPlace(to);save()}};
 }
 
 /* --- ручное управление --- */
 function setControl(on){
-  if(on&&!champ){sys('Сначала запусти эволюцию: Рико появится в городе.');return}
+  if(on&&!champ&&!AMN.on){sys('Сначала запусти эволюцию или включи «Амнезию»: Рико появится в городе.');return}
   if(on===control)return;control=on;$('ctrl').setAttribute('aria-pressed',on);$('joy').hidden=!on;$('ctl').hidden=!on;
   if(on){anim=null;actUntil=0;order=null;P3.x=lastP.x;P3.z=lastP.z;if(!onRoad(P3.x,P3.z)){const s=standPos(C.loc);P3.x=s.x;P3.z=s.z}
     veh=C.car?'own':null;follow=true;$('follow').setAttribute('aria-pressed',true);
@@ -1003,7 +1007,7 @@ function copsTick(dt,now){
     c.x+=mx*sp;c.z+=mz*sp;if(mx||mz){c.vx=mx;c.vz=mz}
     c.m.position.set(c.x,0,c.z);c.m.rotation.y=Math.atan2(-c.vz,c.vx);
     const bl=Math.floor(now/180)%2;c.m.userData.l[0].visible=!!bl;c.m.userData.l[1].visible=!bl;
-    if(d<2.6&&st>=2&&champ){arrest();return}}
+    if(d<2.6&&st>=2&&(champ||AMN.on)){arrest();return}}
   if(C.heat>0&&!near)C.heat=Math.max(0,C.heat-dt*speed*.6);
 }
 function arrest(){const st=stars(),fine=Math.min(Math.max(0,C.money),150*st);
@@ -1013,7 +1017,7 @@ function arrest(){const st=stars(),fine=Math.min(Math.max(0,C.money),150*st);
   sys(`Рико арестовали! Штраф $${fine}, ночь в участке.`);callCheck('Арестован');save(true)}
 function initGta(){const cols=[0x3a86ff,0xe63946,0xf1faee,0x2a9d8f,0xffb703,0x8d99ae,0x6a4c93,0xff8fab];for(const col of cols){const t={m:mkCar(col,false)};spawnTraffic(t);TRAFFIC.push(t)}
   beam=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,40,16,1,true),new THREE.MeshBasicMaterial({color:0xffd166,transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide}));beam.position.y=20;beam.visible=false;scene.add(beam)}
-function beamTick(now){if(!beam)return;const st=curStep(),t=gps||(st&&st[0]);beam.visible=!!t&&!!champ;if(t){const p=standPos(t);beam.position.x=p.x;beam.position.z=p.z;beam.material.opacity=.2+.12*Math.sin(now/300)}}
+function beamTick(now){if(!beam)return;const st=curStep(),t=gps||(st&&st[0]);beam.visible=!!t&&(!!champ||AMN.on);if(t){const p=standPos(t);beam.position.x=p.x;beam.position.z=p.z;beam.material.opacity=.2+.12*Math.sin(now/300)}}
 
 /* --- HUD --- */
 let hudCache='';
@@ -1079,7 +1083,7 @@ function drawMap(){const d=window.devicePixelRatio||1;if(mm.width!==300*d){mm.wi
   for(const c of COPS){mctx.fillStyle='#ff2040';mctx.fillRect(MX(c.x)-3,MX(c.z)-3,6,6)}
   mctx.fillStyle='#ff8a4c';mctx.strokeStyle='#fff';mctx.lineWidth=2;mctx.beginPath();mctx.arc(MX(lastP.x),MX(lastP.z),5.5,0,7);mctx.fill();mctx.stroke()}
 mm.addEventListener('click',e=>{const r=mm.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*300,y=(e.clientY-r.top)/r.height*300;let b=null,bd=22;
-  for(const k in LOC){const p=standPos(k),d=Math.hypot(MX(p.x)-x,MX(p.z)-y);if(d<bd){bd=d;b=k}}if(!b||!champ)return;
+  for(const k in LOC){const p=standPos(k),d=Math.hypot(MX(p.x)-x,MX(p.z)-y);if(d<bd){bd=d;b=k}}if(!b||(!champ&&!AMN.on))return;
   if(control){gps=b;sys('GPS: маршрут до «'+LOC[b].n+'».')}else{order={goto:b};push({who:'me',text:'(GPS: отправил Рико в «'+LOC[b].n+'»)'})}drawMap()});
 /* радио */
 let AC=null,radio=null;
@@ -1206,12 +1210,122 @@ $('snd').onclick=()=>{soundOn=!soundOn;$('snd').setAttribute('aria-pressed',soun
 function netTick(){const h=Math.floor(absH(C));if(NET.lastH<0)NET.lastH=h;if(h!==NET.lastH){NET.lastH=h;stockHour()}
   if(C.day!==NET.lastDay){NET.lastDay=C.day;newDay()}}
 
+/* ================= Нативная нейросеть (приложение iOS) ================= */
+const NATIVE=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.llm);
+const NL={seq:0,pend:{},st:null};
+window.__llm={chunk(id,t){const p=NL.pend[id];if(p)p.onData({choices:[{delta:{content:t}}]})},
+  done(id,st){const p=NL.pend[id];if(!p)return;delete NL.pend[id];p.onData({choices:[{delta:{}}],timings:{predicted_per_second:(st&&st.tps)||0}});p.res()},
+  error(id,m){const p=NL.pend[id];if(!p)return;delete NL.pend[id];p.rej(new Error(m))},
+  event(e){nativeEvent(e)}};
+const nativeShim={createChatCompletion:o=>new Promise((res,rej)=>{const id=++NL.seq;NL.pend[id]={res,rej,onData:o.onData||(()=>{})};
+  window.webkit.messageHandlers.llm.postMessage({cmd:'chat',id,messages:o.messages,max_tokens:o.max_tokens||200,temperature:o.temperature||.7,json:!!o.response_format})}),exit:async()=>{}};
+function nsend(m){if(NATIVE)window.webkit.messageHandlers.llm.postMessage(m)}
+function nativeEvent(e){NL.st=e;
+  if(e.loaded){AI.w=nativeShim;AI.ready=true;AI.name=e.loaded;aiStatus('')}else if(e.type==='status'){AI.ready=false}
+  if(e.error)aiStatus(e.error,true);else if(e.loading)aiStatus(`Загружаю ${e.loading}… ${e.progress!=null?Math.round(e.progress*100)+'%':''}`);
+  if(e.justLoaded)sys(`Нейросеть загружена: ${e.loaded}. Работает на видеочипе iPhone.`);
+  renderNativeBox();aiUI();brainDirty=true}
+function renderNativeBox(){const b=$('ai-native');if(!b)return;b.innerHTML='';const st=NL.st||{};
+  if(st.loading||st.error){const q=document.createElement('p');q.className='st';q.textContent=st.error?'Ошибка: '+st.error:`Загружаю ${st.loading}… ${st.progress!=null?Math.round(st.progress*100)+'%':''}`;b.append(q)}
+  const p=document.createElement('p');p.textContent=st.loaded?`Загружена: ${st.loaded}`:'Положи файл .gguf в «Файлы» → «На iPhone» → «Рико» или выбери его кнопкой ниже. Подойдёт и большая модель: она работает напрямую, без браузерных ограничений.';b.append(p);
+  for(const f of st.models||[]){const r=document.createElement('button');r.type='button';r.textContent=(st.loaded===f.name?'✓ ':'Загрузить: ')+f.name+` (${(f.size/1e9).toFixed(1)} ГБ)`;r.disabled=!!st.loading||st.loaded===f.name;r.onclick=()=>nsend({cmd:'load',name:f.name});b.append(r)}
+  const pk=document.createElement('button');pk.type='button';pk.className='primary';pk.textContent='Выбрать файл модели…';pk.disabled=!!st.loading;pk.onclick=()=>nsend({cmd:'pick'});b.append(pk);
+  const rf=document.createElement('button');rf.type='button';rf.textContent='Обновить список';rf.onclick=()=>nsend({cmd:'status'});b.append(rf)}
+
+/* ================= Амнезия: чистый разум ================= */
+const AMN={on:false,known:{},name:'',goal:'',self:'',knowMoney:false,thinking:false,obs:null,lastMorning:0};
+const LOOKS={home:'жилой дом с облезлой дверью',mom:'маленький дом с цветами на окнах',gym:'здание, откуда доносится звон железа',diner:'место, где пахнет жареным мясом',garage:'гаражи, где парни возятся с машиной',college:'большое здание с колоннами, вокруг молодёжь с книгами',office:'высокая стеклянная башня',casino:'здание с мигающими огнями и музыкой',port:'причалы, краны и контейнеры у воды',lot:'пустырь со следами шин',hospital:'белое здание с красным крестом',beach:'песчаный берег у моря',shop:'закрытая мастерская с табличкой «Продаётся»',phoneshop:'магазин с экранами в витрине',cars:'площадка с блестящими машинами за забором',den:'тёмное здание, у входа курят хмурые парни'};
+const KNOWS={'Лео':'Рико, брат! Ты где пропадал? Ты какой-то потерянный… Заходи в гараж, работа есть.','Роза':'Рико, золотце! Ты бледный. В бургерной всегда накормлю, только деньги не забывай.','Мигель':'Рико? Говорят, ты головой ударился. На пустыре без тачки тебе всё равно делать нечего.','Офицер Грант':'Рико. Держись подальше от неприятностей, ясно? Я за тобой приглядываю.','Кобра':'Ты должен нам, Рико. Или уже «забыл»? Плохая отмазка.'};
+const amnName=k=>AMN.known[k]?AMN.known[k].name:LOOKS[k];
+function amnStart(){
+  if(control)setControl(false);evoOn=false;setEvo(false);
+  C=newEnv();C.loc='beach';C.money=23;C.food=45;C.energy=60;C.mood=35;anim=null;actUntil=0;order=null;cur=null;showFrom=showTo=absH(C);
+  Object.assign(AMN,{on:true,known:{},name:'',goal:'',self:'',knowMoney:false,thinking:false,obs:null,lastMorning:C.day});
+  MEM.length=0;PLAN={day:0,steps:[],i:0};MISSION=null;chat=[];inbox=[];rerenderChat();
+  for(const k in MIND)if(k==='trust')MIND.trust=30;MIND.name='';MIND.facts=[];MIND.gifts=[];
+  remember('event','Очнулся на песке у моря. Голова гудит. Ничего не помню: ни имени, ни этого места, ни как сюда попал. В кармане какие-то бумажки и ключ с биркой.',10);
+  sys('Он открыл глаза на песке. Он не помнит ничего. Даже своего имени.');push({who:'th',text:'Где я?.. Кто я?..'});
+  amnUI();save(true)}
+function amnStop(){AMN.on=false;sys('Режим амнезии выключен. Рико снова живёт по выученным привычкам.');amnUI();save(true)}
+function amnUI(){$('amn').setAttribute('aria-pressed',AMN.on);$('amn').textContent=AMN.on?'Амнезия: вкл':'Амнезия';document.body.classList.toggle('amnesia',AMN.on);renderPanels()}
+function sens(){const p=[];p.push(C.food<20?'живот сводит от голода':C.food<45?'хочется есть':'не голоден');p.push(C.energy<15?'валишься с ног':C.energy<40?'устал':'бодр');
+  if(C.health<40)p.push('всё тело болит');if(C.mood<25)p.push('на душе паршиво и тревожно');else if(C.mood>70)p.push('на душе неплохо');if(C.heat>40)p.push('полицейские смотрят на тебя подозрительно');return p.join(', ')}
+const partOfDay=h=>{h=h%24;return h<5?'глубокая ночь':h<11?'утро':h<17?'день':h<21?'вечер':'ночь'};
+function amnOptions(){const o=[];for(const k in LOC)if(k!==C.loc)o.push('go:'+k);
+  if(AMN.known[C.loc]){AIDS.forEach((id,i)=>{if(ACT[id].loc===C.loc&&allowed(C,i))o.push('act:'+id)})}else o.push('look');
+  if(NPCS.some(n=>!n.anim&&n.loc===C.loc))o.push('talk');o.push('nap');return o}
+function optLabel(o){const[k,v]=o.split(':');if(k==='go')return'пойти: '+amnName(v);
+  if(k==='act'){const kn=AMN.known[C.loc]&&AMN.known[C.loc].acts[v];return'попробовать «'+ACT[v].n+'»'+(ACT[v].cost?` (просят $${ACT[v].cost})`:'')+(kn?` — в прошлый раз: ${kn.last}`:'')}
+  return{look:'осмотреться здесь',talk:'заговорить с человеком рядом',nap:'прикорнуть прямо тут',none:'ничего'}[o]||o}
+function amnCtx(q){const here=NPCS.filter(n=>!n.anim&&n.loc===C.loc).map(n=>n.gang?'хмурый парень в чёрном':(AMN.known['npc_'+n.n]?n.n:'незнакомец')).join(', ')||'никого';
+  const places=Object.keys(AMN.known).filter(k=>LOC[k]).map(k=>{const a=AMN.known[k].acts;const t=Object.keys(a).map(id=>`${ACT[id].n}: ${a[id].last}`).join('; ');return`- ${AMN.known[k].name}${t?' — '+t:''}`}).join('\n')||'- пока никаких';
+  const mem=recall(q||'',8).map(m=>`- (день ${m.d}) ${m.t}`).join('\n')||'- ничего';
+  return`ГДЕ ТЫ: ${amnName(C.loc)}${AMN.known[C.loc]?'':' (ты здесь впервые)'}. ${partOfDay(C.hour)}, погода: ${WN[WEATHER.t]}, день ${C.day} с пробуждения.
+ТЕЛО: ${sens()}.
+В КАРМАНЕ: ${C.money} долларов${AMN.knowMoney?'':' (ты пока не понимаешь, много это или мало)'}${C.phone?', телефон':''}${C.car?', ключи от машины':''}.
+РЯДОМ: ${here}.
+ИМЯ: ${AMN.name||'не помнишь'}. КТО ТЫ: ${AMN.self||'не знаешь'}. ЦЕЛЬ: ${AMN.goal||'нет, ты ещё сам не решил, чего хочешь'}.
+ЧТО ТЫ ПОМНИШЬ С МОМЕНТА ПРОБУЖДЕНИЯ:
+${mem}
+ЧТО ТЫ УЗНАЛ О МЕСТАХ:
+${places}`}
+const AMN_PERSONA=`Ты — человек, который очнулся на улице незнакомого приморского города после полной амнезии. Ты не помнишь ни своего имени, ни прошлого, ни как устроен этот город. У тебя нет заданных целей: ты сам решаешь, чего хочешь, исходя из ощущений, любопытства и опыта. Ты узнаёшь мир только через то, что сам попробовал, увидел или услышал от людей. Ты делаешь выводы из последствий своих поступков и запоминаешь их. Думаешь и говоришь по-русски, коротко и по-человечески. Отвечай только JSON.`;
+async function aiAmnDecide(){const opts=amnOptions();
+  const o=await llm([{role:'system',content:AMN_PERSONA},{role:'user',content:amnCtx(C.loc+' '+sens())+`\n\nВАРИАНТЫ (выбери id одного):\n${opts.map(x=>`${x} = ${optLabel(x)}`).join('\n')}\n\nПодумай, что ты чувствуешь и чего хочешь, учти прошлый опыт и выбери вариант. JSON: {"thought":"мысль","choice":"id"}`}],
+    {type:'object',properties:{thought:{type:'string'},choice:{type:'string',enum:opts}},required:['thought','choice']},140);
+  if(o.thought)push({who:'th',text:String(o.thought).slice(0,240)});return opts.includes(o.choice)?o.choice:'look'}
+function amnSimple(){const opts=amnOptions(),has=o=>opts.includes(o);
+  if(C.energy<20){if(AMN.known.home)return C.loc==='home'?'act:sleep':'go:home';return'nap'}
+  if(C.food<35){if(has('act:eat'))return'act:eat';if(AMN.known.diner&&C.money>=12)return'go:diner';if(AMN.known.mom)return C.loc==='mom'?'act:mom':'go:mom'}
+  if(has('look'))return'look';if(has('talk')&&R()<.4)return'talk';
+  if(C.money<30){for(const j of['port','garage'])if(has('act:'+j))return'act:'+j;if(AMN.known.port&&R()<.5)return'go:port'}
+  const unk=Object.keys(LOC).filter(k=>!AMN.known[k]&&k!==C.loc);if(unk.length&&R()<.7)return'go:'+pick(unk);
+  const acts=opts.filter(o=>o.startsWith('act:')&&!/casino|shady/.test(o));if(acts.length&&R()<.6)return pick(acts);return pick(opts.filter(o=>o.startsWith('go:')))}
+function amnTick(now){if(AMN.thinking||order||anim)return;
+  if(!AI.ready||mindMode!=='ai'){const ch=amnSimple();push({who:'th',text:'('+optLabel(ch)+')'});amnExec(ch,now);return}
+  if(AI.busy||asking)return;AMN.thinking=true;AI.busy=true;$('doing').textContent='думает…';
+  aiAmnDecide().then(ch=>{AI.busy=false;AMN.thinking=false;amnExec(ch,performance.now())}).catch(e=>{console.error(e);AI.busy=false;AMN.thinking=false;lastAiErr=String(e&&e.message||e);actUntil=performance.now()+3000})}
+function learnPlace(k,silent){if(AMN.known[k])return;AMN.known[k]={name:LOC[k].n,acts:{},visits:1};const acts=AIDS.filter(id=>ACT[id].loc===k).map(id=>ACT[id].n);
+  let t=`Узнал место: «${LOC[k].n}» (${LOOKS[k]}).${acts.length?' Здесь можно: '+acts.join(', ')+'.':''}`;
+  if(k==='home')t='Ключ из кармана подошёл к двери этого дома. Внутри кровать и старые фото. Похоже, я здесь живу.';
+  if(k==='mom'){t='Женщина в доме с цветами бросилась меня обнимать: «Рико! Сынок! Где ты был?!» Это моя мать. Меня зовут Рико.';if(!AMN.name){AMN.name='Рико';sys('Он узнал своё имя: Рико.')}}
+  remember('place',t,k==='mom'||k==='home'?9:4);if(!silent)push({who:'th',text:t})}
+function amnTalk(){const n=NPCS.find(x=>!x.anim&&x.loc===C.loc);if(!n)return;const line=KNOWS[n.gang?'Кобра':n.n];const who=n.gang?'Хмурый парень':n.n;
+  AMN.known['npc_'+n.n]=1;push({who:'th',text:`${who}: «${line}»`});remember('talk',`${who} сказал мне: «${line}»`,6);
+  if(!AMN.name&&/Рико/.test(line)){AMN.name='Рико';sys('Он узнал своё имя: Рико.')}C.mood=Math.min(100,C.mood+3)}
+const amnSnap=()=>({m:C.money,f:C.food,e:C.energy,h:C.health,mo:C.mood,heat:C.heat,t:absH(C)});
+function amnObserve(id){if(!AMN.on||!AMN.obs||AMN.obs.id!==id)return;const a=AMN.obs.s,b=amnSnap();AMN.obs=null;const p=[];
+  const dm=b.m-a.m;if(dm)p.push((dm>0?'получил $':'потратил $')+Math.abs(dm));if(dm>0&&!AMN.knowMoney){AMN.knowMoney=true}
+  const df=b.f-a.f,de=b.e-a.e,dh=b.h-a.h,dmo=b.mo-a.mo;if(df>12)p.push('наелся');else if(df<-15)p.push('проголодался');if(de>25)p.push('отдохнул');else if(de<-15)p.push('вымотался');
+  if(dh<-10)p.push('пострадал');else if(dh>15)p.push('стало лучше');if(dmo>8)p.push('настроение поднялось');else if(dmo<-8)p.push('настроение испортилось');if(b.heat-a.heat>10)p.push('полиция стала присматриваться');
+  const hrs=Math.round(b.t-a.t);const res=(p.join(', ')||'ничего заметного')+(hrs?`, заняло ${hrs} ч`:'');
+  const k=ACT[id].loc;if(!AMN.known[k])learnPlace(k,true);const A=AMN.known[k].acts;A[id]={tries:((A[id]&&A[id].tries)||0)+1,last:res};
+  remember('exp',`Попробовал «${ACT[id].n}» (${LOC[k].n}): ${res}.`,Math.abs(dm)>50||dh<-10||b.heat-a.heat>10?7:4)}
+function amnExec(ch,now){ch=String(ch||'look');const[k,v]=ch.split(':');
+  if(k==='go'&&LOC[v]){order={goto:v};return}
+  if(k==='act'&&ACT[v]){const i=AIDS.indexOf(v);if(allowed(C,i)){AMN.obs={id:v,s:amnSnap()};order=i;orderBy='amn';return}}
+  if(ch==='talk'){amnTalk();actUntil=now+500/speed;return}
+  if(ch==='nap'){const h0=absH(C);passHours(C,4,true);C.energy+=30;C.mood-=4;fix(C);showFrom=h0;showTo=absH(C);showT0=now;actUntil=now+4*650/speed;
+    if(C.hour>=26){C.day++;C.hour=8}remember('exp','Прикорнул на улице: чуть отдохнул, но спать на улице холодно и неуютно.',3);push({who:'th',text:'Прикорнул прямо тут…'});return}
+  learnPlace(C.loc);actUntil=now+500/speed}
+async function amnMorning(){if(!AMN.on||!AI.ready||AI.busy||mindMode!=='ai'||AMN.lastMorning===C.day)return;AMN.lastMorning=C.day;AI.busy=true;
+  try{const y=MEM.filter(m=>m.d>=C.day-1).slice(-14).map(m=>'- '+m.t).join('\n');
+    const o=await llm([{role:'system',content:AMN_PERSONA},{role:'user',content:amnCtx('кто я чего хочу урок')+`\n\nНЕДАВНО:\n${y}\n\nНаступило новое утро. Подумай: что ты понял о мире и о себе? Какие уроки вынес? Кто ты, по-твоему? Чего ты теперь хочешь? JSON: {"lessons":["..."],"self":"кто я, одной фразой","goal":"чего хочу, одной фразой","thought":"мысль"}`}],
+      {type:'object',properties:{lessons:{type:'array',items:{type:'string'},maxItems:2},self:{type:'string'},goal:{type:'string'},thought:{type:'string'}},required:['lessons','self','goal','thought']},260);
+    for(const l of (o.lessons||[]).slice(0,2)){remember('lesson',String(l),7);push({who:'th',text:'Понял: '+l})}
+    if(o.self){AMN.self=String(o.self).slice(0,120)}if(o.goal&&String(o.goal)!==AMN.goal){AMN.goal=String(o.goal).slice(0,120);sys('Он сам решил, чего хочет: '+AMN.goal);remember('goal','Я решил: '+AMN.goal,8)}
+    if(o.thought)push({who:'th',text:'Утро. '+o.thought});save()}catch(e){console.error(e);lastAiErr=String(e&&e.message||e)}AI.busy=false;brainDirty=true}
+function renderAmnPanel(){const box=$('ms');if(!AMN.on)return false;let h=`<li class="done"><span>Имя</span><small>${AMN.name||'не помнит'}</small></li><li class="${AMN.self?'done':''}"><span>Кто он: ${AMN.self||'не знает'}</span><small></small></li><li class="${AMN.goal?'done':''}"><span>Цель: ${AMN.goal||'пока нет'}</span><small></small></li>`;
+  for(const k of Object.keys(LOC)){const kn=AMN.known[k];h+=`<li class="${kn?'done':''}"><span>${kn?kn.name:'??? '+LOOKS[k]}</span><small>${kn?Object.keys(kn.acts).length+' опыт.':''}</small></li>`}
+  box.innerHTML=h.replace(/<script/gi,'');return true}
+
 /* ================= кадр ================= */
 function frame(now){
   if(evoOn){if($('turbo').checked){const t0=performance.now();while(performance.now()-t0<30)evolveOnce()}else if(now-lastEvo>350){lastEvo=now;evolveOnce()}}
   const dt=Math.min(.1,(now-(lastFrame||now))/1000);lastFrame=now;
-  if(mindMode==='ai'&&AI.ready&&champ&&PLAN.day!==C.day&&C.hour<20&&!AI.busy&&!asking)aiMorning();
-  cityTick(now);npcTick(now);if(ok3d&&champ){if(control)controlTick(dt);trafficTick(dt);copsTick(dt,now);beamTick(now)}else if(ok3d)trafficTick(dt);hud();wdt=dt;if(ok3d)sirenTick();netTick();
+  if(!AMN.on&&mindMode==='ai'&&AI.ready&&champ&&PLAN.day!==C.day&&C.hour<20&&!AI.busy&&!asking)aiMorning();
+  if(AMN.on&&AI.ready&&AMN.lastMorning!==C.day&&C.hour<14&&!AI.busy&&!asking&&!AMN.thinking)amnMorning();
+  cityTick(now);npcTick(now);if(ok3d&&(champ||AMN.on)){if(control)controlTick(dt);trafficTick(dt);copsTick(dt,now);beamTick(now)}else if(ok3d)trafficTick(dt);hud();wdt=dt;if(ok3d)sirenTick();netTick();
   const dur=Math.max(1,actUntil-showT0);showHour=showFrom+(showTo-showFrom)*clamp((now-showT0)/dur,0,1);
   if(shopSign&&C.shop!==shopSign.userData.s){shopSign.userData.s=C.shop}
   render3d(now);
@@ -1243,9 +1357,9 @@ function renderPanels(){
   $('k-best').textContent=last?Math.round(last.b):'—';$('k-avg').textContent=last?Math.round(last.a):'—';$('k-champ').textContent=champ?Math.round(champFit):'—';
   const m=$('money');m.textContent=(C.money<0?'−$':'$')+Math.abs(C.money);m.className='money'+(C.money<0?' neg':'');
   $('stats').innerHTML=bar('Здоровье',C.health,100,lv(C.health))+bar('Энергия',C.energy,100,lv(C.energy))+bar('Сытость',C.food,100,lv(C.food))+bar('Настроение',C.mood,100,lv(C.mood))+bar('Полиция',C.heat,100,C.heat>50?'crit':C.heat>25?'warn':'t')+bar('«Кобры»',C.gang,100,C.gang>=60?'crit':C.gang>=30?'warn':'t')+bar('Вождение',C.drv,6,'t',C.drv.toFixed(1))+bar('Знания',C.know,3,'t',C.know.toFixed(1));
-  $('ms').innerHTML=MS.map(([k,n,p])=>`<li class="${C.ms[k]?'done':''}"><span>${n}</span><small>${C.ms[k]?'день '+C.ms[k]:'+'+p}</small></li>`).join('');
+  if(!renderAmnPanel())$('ms').innerHTML=MS.map(([k,n,p])=>`<li class="${C.ms[k]?'done':''}"><span>${n}</span><small>${C.ms[k]?'день '+C.ms[k]:'+'+p}</small></li>`).join('');
   $('clock').textContent=`День ${C.day} · ${hhmm(showHour)}`;
-  $('doing').textContent=!champ?'ждёт эволюцию':doingText();
+  $('doing').textContent=AMN.thinking?'думает…':(!champ&&!AMN.on)?'ждёт эволюцию или амнезию':doingText();
   $('lx-heard').textContent=LEX.heard;renderLex();
   if(lastItemsDay!==C.day||lastChamp!==!!champ){lastItemsDay=C.day;lastChamp=!!champ;renderItems()}
   drawCurve();renderSig();
@@ -1256,11 +1370,11 @@ const encG=g=>{const u=new Uint8Array(g.buffer);let s='';for(const b of u)s+=Str
 const decG=s=>{const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new Float32Array(u.buffer)};
 let saveT=0;
 function save(force){const now=Date.now();if(!force&&now-saveT<5000)return;saveT=now;
-  try{localStorage.setItem(KEY,JSON.stringify({gen,hist:hist.slice(-1500),pop:pop.map(encG),champ:champ&&encG(champ),champFit,C,chat:chat.slice(-120),inbox:inbox.map(m=>chat.indexOf(m)),bias:Array.from(cBias),cBiasUntil,MIND,mindMode,LEX,gta:{MISSION,REL,DONE,TX:TX.slice(-80),PHOTOS,lastMorningDay},brain:{MEM:MEM.slice(-150),PLAN,AIcfg},net:{NET,STOCKS:STOCKS.map(s=>({id:s.id,p:s.p,h:s.h})),WEATHER}}))}catch(e){}}
+  try{localStorage.setItem(KEY,JSON.stringify({gen,hist:hist.slice(-1500),pop:pop.map(encG),champ:champ&&encG(champ),champFit,C,chat:chat.slice(-120),inbox:inbox.map(m=>chat.indexOf(m)),bias:Array.from(cBias),cBiasUntil,MIND,mindMode,LEX,gta:{MISSION,REL,DONE,TX:TX.slice(-80),PHOTOS,lastMorningDay},brain:{MEM:MEM.slice(-150),PLAN,AIcfg},amn:{...AMN,thinking:false,obs:null},net:{NET,STOCKS:STOCKS.map(s=>({id:s.id,p:s.p,h:s.h})),WEATHER}}))}catch(e){}}
 function load(){try{const t=localStorage.getItem(KEY);if(!t)return false;const o=JSON.parse(t);
   if(!o.pop||o.pop.length!==POP||decG(o.pop[0]).length!==NA*NF)return false;
   gen=o.gen;hist=o.hist;pop=o.pop.map(decG);champ=o.champ?decG(o.champ):null;champFit=o.champFit;notifiedFit=champFit;C=Object.assign(newEnv(),o.C);chat=o.chat||[];
-  inbox=(o.inbox||[]).map(i=>chat[i]).filter(Boolean);cBias=Float32Array.from(o.bias||new Array(NA).fill(0));cBiasUntil=o.cBiasUntil||0;Object.assign(MIND,o.MIND||{});mindMode=o.mindMode||'ai';if(o.LEX)Object.assign(LEX,o.LEX);if(o.gta){MISSION=o.gta.MISSION||null;Object.assign(REL,o.gta.REL||{});Object.assign(DONE,o.gta.DONE||{});TX=o.gta.TX||[];PHOTOS=o.gta.PHOTOS||[];lastMorningDay=o.gta.lastMorningDay||0}if(o.brain){MEM.push(...(o.brain.MEM||[]));if(o.brain.PLAN)PLAN=o.brain.PLAN;Object.assign(AIcfg,o.brain.AIcfg||{});$('aiDrive').checked=AIcfg.drive;$('aiTemp').value=AIcfg.temp;$('aiTempV').textContent=(+AIcfg.temp).toFixed(2)}if(o.net){Object.assign(NET,o.net.NET||{});for(const x of o.net.STOCKS||[]){const s=STOCKS.find(y=>y.id===x.id);if(s){s.p=x.p;s.h=x.h||[]}}if(o.net.WEATHER)WEATHER=o.net.WEATHER}showFrom=showTo=absH(C);return true}catch(e){return false}}
+  inbox=(o.inbox||[]).map(i=>chat[i]).filter(Boolean);cBias=Float32Array.from(o.bias||new Array(NA).fill(0));cBiasUntil=o.cBiasUntil||0;Object.assign(MIND,o.MIND||{});mindMode=o.mindMode||'ai';if(o.LEX)Object.assign(LEX,o.LEX);if(o.gta){MISSION=o.gta.MISSION||null;Object.assign(REL,o.gta.REL||{});Object.assign(DONE,o.gta.DONE||{});TX=o.gta.TX||[];PHOTOS=o.gta.PHOTOS||[];lastMorningDay=o.gta.lastMorningDay||0}if(o.amn)Object.assign(AMN,o.amn,{thinking:false,obs:null});if(o.brain){MEM.push(...(o.brain.MEM||[]));if(o.brain.PLAN)PLAN=o.brain.PLAN;Object.assign(AIcfg,o.brain.AIcfg||{});$('aiDrive').checked=AIcfg.drive;$('aiTemp').value=AIcfg.temp;$('aiTempV').textContent=(+AIcfg.temp).toFixed(2)}if(o.net){Object.assign(NET,o.net.NET||{});for(const x of o.net.STOCKS||[]){const s=STOCKS.find(y=>y.id===x.id);if(s){s.p=x.p;s.h=x.h||[]}}if(o.net.WEATHER)WEATHER=o.net.WEATHER}showFrom=showTo=absH(C);return true}catch(e){return false}}
 
 /* ================= кнопки ================= */
 function setEvo(on){evoOn=on;$('evo').textContent=on?'Пауза эволюции':(gen?'Продолжить эволюцию':'Запустить эволюцию');$('evo').classList.toggle('primary',!on)}
@@ -1275,11 +1389,13 @@ window.addEventListener('pagehide',()=>save(true));
 
 if(!load())initPop();
 if(!window.claude)document.querySelector('.mode[data-m="claude"]').hidden=true;
-setMode(mindMode);init3d();if(ok3d){initGta();initWeather();applyOutfit();if(C.carColor)carObj.children[0].material.color.setHex(C.carColor)}rerenderChat();setEvo(false);renderPanels();
+$('amn').onclick=()=>{if(AMN.on){amnStop();return}if(!amnArmed){amnArmed=true;$('amn').textContent='Стереть память? Ещё раз';setTimeout(()=>{amnArmed=false;amnUI()},3000);return}amnArmed=false;amnStart()};
+if(NATIVE){setMode('ai');setTimeout(()=>nsend({cmd:'status'}),300)}
+setMode(mindMode);init3d();if(AMN.on)setTimeout(amnUI,0);if(ok3d){initGta();initWeather();applyOutfit();if(C.carColor)carObj.children[0].material.color.setHex(C.carColor)}rerenderChat();setEvo(false);renderPanels();
 if(!chat.length)sys('Запусти эволюцию: лучший клон Рико появится в городе. Потом нажимай на здания, передавай вещи и пиши ему.');
 setInterval(renderPanels,300);requestAnimationFrame(frame);
 (async()=>{try{sample=window.claude?await window.claude.use('sample'):null}catch(e){sample=null}if(!sample&&mindMode==='claude')setMode('own')})();
-window.__t={ai:AI,morning:aiMorning,plan:()=>PLAN,mem:()=>MEM,setMode,gta:()=>({P3,lastP,control,MISSION,COPS:COPS.length,heat:C.heat,loc:C.loc,ctlNear}),evolveOnce,get gen(){return gen},get C(){return C},mindReply,get champ(){return champ}};
+window.__t={amn:AMN,amnStart,ai:AI,morning:aiMorning,plan:()=>PLAN,mem:()=>MEM,setMode,gta:()=>({P3,lastP,control,MISSION,COPS:COPS.length,heat:C.heat,loc:C.loc,ctlNear}),evolveOnce,get gen(){return gen},get C(){return C},mindReply,get champ(){return champ}};
 })();
 </script>
 

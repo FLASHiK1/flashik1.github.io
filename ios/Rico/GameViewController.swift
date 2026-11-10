@@ -1,0 +1,188 @@
+import UIKit
+import WebKit
+import UniformTypeIdentifiers
+
+/// Прокси, чтобы WKUserContentController не держал контроллер сильной ссылкой.
+private final class WeakHandler: NSObject, WKScriptMessageHandler {
+    weak var target: WKScriptMessageHandler?
+    init(_ t: WKScriptMessageHandler) { target = t }
+    func userContentController(_ c: WKUserContentController, didReceive m: WKScriptMessage) {
+        target?.userContentController(c, didReceive: m)
+    }
+}
+
+final class GameViewController: UIViewController, WKScriptMessageHandler, UIDocumentPickerDelegate {
+    private var web: WKWebView!
+    private let engine = LlamaEngine()
+    private let queue = DispatchQueue(label: "rico.llm", qos: .userInitiated)
+    private var loading: String?
+    private var progress: Float?
+    private var lastError: String?
+    private var scopedURL: URL?
+    private var autoTried = false
+    private var cancelGen = false
+
+    override var prefersStatusBarHidden: Bool { false }
+    override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = UIColor(red: 0.086, green: 0.067, blue: 0.114, alpha: 1)
+        let cfg = WKWebViewConfiguration()
+        cfg.userContentController.add(WeakHandler(self), name: "llm")
+        cfg.allowsInlineMediaPlayback = true
+        cfg.mediaTypesRequiringUserActionForPlayback = []
+        web = WKWebView(frame: view.bounds, configuration: cfg)
+        web.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        web.isOpaque = false
+        web.backgroundColor = view.backgroundColor
+        web.scrollView.backgroundColor = view.backgroundColor
+        if #available(iOS 16.4, *) { web.isInspectable = true }
+        view.addSubview(web)
+        if let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "web") {
+            web.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        }
+        engine.onProgress = { [weak self] p in
+            DispatchQueue.main.async { self?.progress = p; self?.sendStatus() }
+        }
+    }
+
+    // MARK: - Мост JS <-> Swift
+
+    func userContentController(_ c: WKUserContentController, didReceive m: WKScriptMessage) {
+        guard let body = m.body as? [String: Any], let cmd = body["cmd"] as? String else { return }
+        switch cmd {
+        case "status":
+            sendStatus()
+            autoLoad()
+        case "load":
+            if let name = body["name"] as? String { loadModel(named: name) }
+        case "pick":
+            pickModel()
+        case "chat":
+            chat(body)
+        default:
+            break
+        }
+    }
+
+    private func js(_ code: String) {
+        DispatchQueue.main.async { [weak self] in self?.web.evaluateJavaScript(code, completionHandler: nil) }
+    }
+
+    private func jsonString(_ obj: Any) -> String {
+        guard let d = try? JSONSerialization.data(withJSONObject: obj, options: [.fragmentsAllowed]),
+              let s = String(data: d, encoding: .utf8) else { return "null" }
+        return s
+    }
+
+    private var documents: URL { FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0] }
+
+    private func modelFiles() -> [[String: Any]] {
+        var out: [[String: Any]] = []
+        let items = (try? FileManager.default.contentsOfDirectory(at: documents, includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        for u in items where u.pathExtension.lowercased() == "gguf" {
+            let size = (try? u.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            out.append(["name": u.lastPathComponent, "size": size])
+        }
+        if let u = resolveBookmark(), !out.contains(where: { ($0["name"] as? String) == u.lastPathComponent }) {
+            let size = (try? u.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            out.append(["name": u.lastPathComponent, "size": size])
+        }
+        return out.sorted { ($0["name"] as? String ?? "") < ($1["name"] as? String ?? "") }
+    }
+
+    private func sendStatus(justLoaded: Bool = false) {
+        var st: [String: Any] = ["type": "status", "models": modelFiles()]
+        if let n = engine.loadedName { st["loaded"] = n }
+        if let l = loading { st["loading"] = l }
+        if let p = progress, loading != nil { st["progress"] = p }
+        if let e = lastError { st["error"] = e }
+        if justLoaded { st["justLoaded"] = true }
+        js("window.__llm && window.__llm.event(\(jsonString(st)))")
+    }
+
+    // MARK: - Модель
+
+    private func resolveBookmark() -> URL? {
+        guard let data = UserDefaults.standard.data(forKey: "modelBookmark") else { return nil }
+        var stale = false
+        return try? URL(resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
+    }
+
+    private func autoLoad() {
+        guard !autoTried, engine.loadedName == nil, loading == nil else { return }
+        autoTried = true
+        if let last = UserDefaults.standard.string(forKey: "lastModel") { loadModel(named: last) }
+    }
+
+    private func loadModel(named name: String) {
+        guard loading == nil else { return }
+        var url = documents.appendingPathComponent(name)
+        if !FileManager.default.fileExists(atPath: url.path), let b = resolveBookmark(), b.lastPathComponent == name {
+            if b.startAccessingSecurityScopedResource() { scopedURL = b }
+            url = b
+        }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            lastError = "Файл «\(name)» не найден."
+            sendStatus(); return
+        }
+        loading = name; progress = 0; lastError = nil
+        sendStatus()
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            do {
+                try self.engine.load(path: url.path, name: name)
+                UserDefaults.standard.set(name, forKey: "lastModel")
+                DispatchQueue.main.async { self.loading = nil; self.sendStatus(justLoaded: true) }
+            } catch {
+                DispatchQueue.main.async {
+                    self.loading = nil
+                    self.lastError = error.localizedDescription
+                    self.sendStatus()
+                }
+            }
+        }
+    }
+
+    private func pickModel() {
+        var types: [UTType] = [.data]
+        if let g = UTType(filenameExtension: "gguf") { types.insert(g, at: 0) }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: types, asCopy: false)
+        picker.delegate = self
+        picker.allowsMultipleSelection = false
+        present(picker, animated: true)
+    }
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        guard let u = urls.first else { return }
+        let ok = u.startAccessingSecurityScopedResource()
+        if let data = try? u.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+            UserDefaults.standard.set(data, forKey: "modelBookmark")
+        }
+        if ok { scopedURL = u }
+        loadModel(named: u.lastPathComponent)
+    }
+
+    // MARK: - Генерация
+
+    private func chat(_ body: [String: Any]) {
+        guard let id = body["id"] as? Int else { return }
+        let raw = body["messages"] as? [[String: Any]] ?? []
+        let msgs: [(String, String)] = raw.map { (($0["role"] as? String) ?? "user", ($0["content"] as? String) ?? "") }
+        let maxTokens = (body["max_tokens"] as? Int) ?? 200
+        let temp = Float((body["temperature"] as? Double) ?? 0.7)
+        let json = (body["json"] as? Bool) ?? false
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            do {
+                let tps = try self.engine.generate(messages: msgs, maxTokens: maxTokens, temp: temp, json: json,
+                                                   cancel: { false },
+                                                   emit: { piece in self.js("window.__llm.chunk(\(id), \(self.jsonString(piece)))") })
+                self.js("window.__llm.done(\(id), {tps: \(tps)})")
+            } catch {
+                self.js("window.__llm.error(\(id), \(self.jsonString(error.localizedDescription)))")
+            }
+        }
+    }
+}
