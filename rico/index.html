@@ -106,6 +106,8 @@ button.hot[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);
 .row2{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:5px 0}.row2>div{display:flex;flex-direction:column;min-width:0}.row2 small{color:var(--muted);font-size:11.5px}
 .stk{display:grid;grid-template-columns:1fr auto;gap:4px 8px;border-bottom:1px solid var(--line);padding:6px 0;align-items:center}.stk>div:first-child{display:flex;flex-direction:column;min-width:0}
 .stk small.up{color:var(--good)}.stk small.down{color:var(--bad)}.stk .bb{grid-column:1/-1;display:flex;gap:4px}.stk .bb button{flex:1;padding:4px 0;font-size:12px}
+.rng{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}.rng input{flex:1;accent-color:var(--sun)}
+ul.plan,ol.plan,ul.mem{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px}ol.plan li.done{color:var(--good);text-decoration:line-through}ol.plan li.cur{font-weight:600}ul.mem{color:var(--muted);font-size:12px}
 .items{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
 .items button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:9px 11px}
 .items button b{font-weight:600}
@@ -167,7 +169,7 @@ button.hot[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);
     </div>
     <div class="phone">
       <div class="phone-top"><b>Рико</b><span class="sig" id="sig">нет телефона</span></div>
-      <nav class="apps" id="apps" aria-label="Приложения"><button type="button" data-app="chat" aria-pressed="true">Чат</button><button type="button" data-app="contacts" aria-pressed="false">Контакты</button><button type="button" data-app="jobs" aria-pressed="false">Задания</button><button type="button" data-app="map" aria-pressed="false">Карта</button><button type="button" data-app="bank" aria-pressed="false">Банк</button><button type="button" data-app="radio" aria-pressed="false">Радио</button><button type="button" data-app="cam" aria-pressed="false">Камера</button><button type="button" data-app="net" aria-pressed="false">Интернет</button></nav>
+      <nav class="apps" id="apps" aria-label="Приложения"><button type="button" data-app="chat" aria-pressed="true">Чат</button><button type="button" data-app="contacts" aria-pressed="false">Контакты</button><button type="button" data-app="jobs" aria-pressed="false">Задания</button><button type="button" data-app="map" aria-pressed="false">Карта</button><button type="button" data-app="bank" aria-pressed="false">Банк</button><button type="button" data-app="radio" aria-pressed="false">Радио</button><button type="button" data-app="cam" aria-pressed="false">Камера</button><button type="button" data-app="net" aria-pressed="false">Интернет</button><button type="button" data-app="brain" aria-pressed="false">Разум</button></nav>
       <div class="app" data-view="chat">
       <div class="mindsw"><button type="button" class="mode" data-m="ai" aria-pressed="false">Нейросеть</button><button type="button" class="mode" data-m="learn" aria-pressed="false">Учится говорить</button><button type="button" class="mode" data-m="own" aria-pressed="true">Свой разум</button><button type="button" class="mode" data-m="claude" aria-pressed="false">Claude</button><span class="trust" id="trust">доверие 40</span></div>
       <div class="aibox" id="aiBox" hidden>
@@ -192,6 +194,13 @@ button.hot[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);
       <div class="app" data-view="map" hidden><canvas id="minimap" width="300" height="300" aria-label="Карта Порт-Сола"></canvas><p class="note">Нажми на место на карте: Рико пойдёт туда. Если ты управляешь им сам, на месте появится жёлтый луч-маршрут. Красные точки — полиция.</p></div>
       <div class="app" data-view="bank" hidden><div class="lbl">Баланс</div><div class="money" id="bal"></div><ol class="tx" id="tx"></ol></div>
       <div class="app" data-view="radio" hidden><div id="stations"></div><p class="note">Музыка собирается прямо в телефоне. Если не слышно, проверь беззвучный режим.</p></div>
+      <div class="app" data-view="brain" hidden>
+        <div id="brainHead"></div>
+        <label class="chk"><input id="aiDrive" type="checkbox" checked> Нейросеть сама планирует день</label>
+        <label class="rng">Фантазия <input id="aiTemp" type="range" min="0.2" max="1.2" step="0.05" value="0.75"> <span id="aiTempV">0.75</span></label>
+        <button id="aiPlanNow" type="button" class="primary">Подумать и составить план</button>
+        <div id="brainBody" class="netbody"></div>
+      </div>
       <div class="app" data-view="net" hidden><nav class="sites" id="sites"><button type="button" data-site="news">Новости</button><button type="button" data-site="shop">Барахолка</button><button type="button" data-site="stocks">Биржа</button><button type="button" data-site="social">ПортЛайф</button></nav><div class="netbody" id="netbody"></div></div>
       <div class="app" data-view="cam" hidden><button type="button" id="snap" class="primary">Сделать снимок города</button><div class="gallery" id="gallery"></div></div>
     </div>
@@ -403,6 +412,7 @@ function cityTick(now){
   if(anim)return;
   if(now<actUntil&&!order)return;
   if(cBiasUntil&&absH(C)>=cBiasUntil){cBias.fill(0);cBiasUntil=0}
+  planTick();
   if(order&&typeof order==='object'){const to=order.goto;order=null;gotoLoc(to,now);return}
   if(!order&&!control&&MISSION&&C.food>20&&C.energy>15&&C.health>30&&C.hour<25&&R()<.6){const st=curStep();if(st&&st[0]!==C.loc){push({who:'th',text:'Задание: '+st[1]+'.'});gotoLoc(st[0],now);return}else if(st)missionArrive(C.loc)}
   if(control&&!order)return;
@@ -416,7 +426,6 @@ function cityTick(now){
     const ev=[],h0=absH(C),m0=C.money,hp0=C.health;step(C,a,ev);armorAbsorb(hp0);cur=id;tx(C.money-m0,ACT[id].n);missionArrive(C.loc);ricoMorning();
     if(control){const sp=standPos(C.loc);P3.x=sp.x;P3.z=sp.z}
     for(const x of ev){sys2(x.t,x.c);callCheck(x.t)}
-    if(mindMode==='ai'&&AI.ready&&C.day!==AI.lastReflectDay&&C.hour<12)aiReflect();
     npcTalk();
     const dh=Math.max(.5,absH(C)-h0);actUntil=performance.now()+dh*650/speed;showFrom=h0;showTo=absH(C);showT0=performance.now();
     if(C.phone&&inbox.length)deliver('phone');
@@ -459,6 +468,7 @@ function callCheck(t){newsFromEvent(t);let k=null;
   if(/^Цель выполнена/.test(t))k='ms';else if(/Арестован/.test(t))k='arrest';else if(/«Кобры» (разгромили|угнали|подкараулили)/.test(t))k='gang';
   else if(/поставил «Кобр»/.test(t))k='win';else if(/очнулся в больнице/.test(t))k='hospital';
   if(!k||!C.phone)return;if(k!=='ms'&&k!=='win'&&lastCallDay===C.day)return;lastCallDay=C.day;
+  if(mindMode==='ai'&&AI.ready&&!AI.busy){aiProactive(t);return}
   push({who:'rico',text:pick(CALLS[k](t)),call:true});ring()}
 function ring(){const ph=document.querySelector('.phone');ph.classList.remove('ring');void ph.offsetWidth;ph.classList.add('ring')}
 
@@ -582,7 +592,7 @@ function renderLex(){
 
 /* ================= чат ================= */
 function push(m){m.d=C.day;m.h=C.hour;chat.push(m);if(chat.length>160)chat.splice(0,chat.length-160);renderMsg(m);if(app!=='chat'&&(m.who==='rico'||m.who==='sys')){unread++;renderApps()}}
-function sys(t){push({who:'sys',text:t})}
+function sys(t){push({who:'sys',text:t});memHook(t)}
 function sys2(t,c){if(c==='big'||/Цель|Кобр|Арестован|больнице/.test(t))push({who:'sys',text:t})}
 function renderMsg(m){
   if(m.who==='th'&&!$('thoughts').checked)return;
@@ -623,7 +633,7 @@ ${msgs.map(m=>'- '+m.text).join('\n')}
   if(mindMode==='ai'&&AI.ready&&!replies.length){const wait0=Date.now();while(AI.busy&&Date.now()-wait0<60000)await new Promise(r=>setTimeout(r,300));AI.busy=true;try{replies.push(await aiChat(msgs))}catch(e){console.error(e);sys('Нейросеть сбилась, ответил разум на правилах.')}AI.busy=false}
   if(!replies.length){await new Promise(r=>setTimeout(r,500+R()*700));for(const m of msgs)replies.push(mindMode==='learn'?learnReply(m.text):mindReply(m.text))}
   chat.splice(chat.indexOf(typing),1);rerenderChat();
-  for(const x of replies){push({who:'rico',text:String(x.r).slice(0,400)});if(x.th)push({who:'th',text:String(x.th).slice(0,200)});if(Array.isArray(x.bias)&&x.bias.length)applyBias(x.bias,x.hours);if(x.mission&&MISSIONS[x.mission]&&missionAvail(x.mission))acceptMission(x.mission,'rico')}
+  for(const x of replies){if(!x.streamed)push({who:'rico',text:String(x.r).slice(0,400)});if(x.th)push({who:'th',text:String(x.th).slice(0,200)});if(Array.isArray(x.bias)&&x.bias.length)applyBias(x.bias,x.hours);if(x.mission&&MISSIONS[x.mission]&&missionAvail(x.mission))acceptMission(x.mission,'rico')}
   asking=false;renderSig();save();
   if(inbox.length&&C.phone)deliver('phone');
 }
@@ -652,45 +662,101 @@ async function aiLoad(kind,arg){
   try{
     aiStatus('Запускаю движок…');const w=await aiInit();
     if(AI.ready){await w.exit().catch(()=>{});AI.ready=false;AI.w=null;await aiInit()}
-    const params={n_ctx:2048,progressCallback:prog};
-    if(kind==='file'){if(arg.size>2.1e9)throw new Error('Файл больше 2 ГБ: браузер его не потянет. Возьми модель 1–3B в Q4.');aiStatus('Читаю файл с телефона…');await AI.w.loadModel([arg],{n_ctx:2048});AI.name=arg.name}
+    const params={n_ctx:3072,progressCallback:prog};
+    if(kind==='file'){if(arg.size>2.1e9)throw new Error('Файл больше 2 ГБ: браузер его не потянет. Возьми модель 1–3B в Q4.');aiStatus('Читаю файл с телефона…');await AI.w.loadModel([arg],{n_ctx:3072});AI.name=arg.name}
     else{const m=HFM[arg];aiStatus('Скачиваю '+m.n+'… (один раз, дальше из памяти телефона)');await AI.w.loadModelFromHF({repo:m.repo,file:m.file},params);AI.name=m.n;try{localStorage.setItem(KEY+'-ai',arg)}catch(e){}}
     AI.ready=true;aiStatus('');sys(`Нейросеть загружена: ${AI.name}. Теперь Рико думает сам, прямо на телефоне.`);
   }catch(e){console.error(e);aiStatus('Не получилось: '+(e&&e.message||e)+'. Попробуй модель поменьше (1.5B).',true)}
   AI.busy=false;$('ai-load').querySelectorAll('button,input').forEach(b=>b.disabled=false);aiUI();
 }
-function aiPrompt(){
-  const goals=MS.map(([k,n])=>`${C.ms[k]?'[x]':'[ ]'} ${n}`).join('; ');
-  const mem=[];if(MIND.name)mem.push('собеседника зовут '+MIND.name);for(const f of MIND.facts.slice(-4))mem.push('о собеседнике: '+f);if(MIND.gifts.length)mem.push('он дарил: '+[...new Set(MIND.gifts)].slice(-5).join(', '));for(const d of (MIND.diary||[]).slice(-3))mem.push('твой вывод: '+d);
-  const recent=chat.filter(m=>m.who==='sys'||m.who==='th').slice(-6).map(m=>'- '+m.text).join('\n');
-  return `Ты — Рико, 24 года, парень из приморского города Порт-Сол. Вернулся домой почти без денег. Упрямый, ироничный, верный своим, любишь маму. Говоришь по-русски, коротко и просто, как живой человек, без мата. Тебе пишет загадочный «голос» по телефону. Доверие к нему: ${Math.round(MIND.trust)}/100. Ты не обязан слушаться.
-Твои цели: ${goals}.
-Сейчас: ${stateLine(C)} Розыск: ${stars()} из 5 звёзд. Погода: ${WN[WEATHER.t]}. Последняя новость города: ${NET.news[0]?NET.news[0].t:'нет'}.
-Подработки: ${Object.keys(MISSIONS).filter(missionAvail).map(id=>id+' — '+MISSIONS[id].from+': '+MISSIONS[id].title).join('; ')||'нет'}. ${MISSION?'Сейчас ты выполняешь задание «'+MISSIONS[MISSION.id].title+'», шаг: '+curStep()[1]+'.':''}
-Память: ${mem.join('; ')||'пока пусто'}.
-Недавние события:
-${recent||'- ничего'}
-Дела, которые ты можешь делать (id): ${AIDS.join(', ')}.
-Всегда отвечай одним JSON-объектом: {"reply":"твой ответ, 1–2 предложения","thought":"мысль про себя","plan":"id дела, которое хочешь сделать, или пусто","avoid":"id дела, которого будешь избегать, или пусто","mission":"id подработки, если хочешь за неё взяться, или пусто"}`;
+/* ---- Мозг 2.0: память, план на день, уроки, действия ---- */
+const MEM=[];let PLAN={day:0,steps:[],i:0};const AIcfg={temp:.75,drive:true};let lastAiErr='',brainDirty=true;
+function remember(k,t,imp){MEM.push({d:C.day,h:Math.round(C.hour%24),k,t:String(t).slice(0,180),imp:imp||3});
+  if(MEM.length>150){let wi=0,ws=1e9;for(let i=0;i<MEM.length-20;i++){const s=MEM[i].imp*10+i*.05;if(s<ws){ws=s;wi=i}}MEM.splice(wi,1)}brainDirty=true}
+function memHook(t){if(/^Цель выполнена/.test(t))remember('event',t,9);else if(/арестовали/.test(t))remember('event',t,8);else if(/Задание .*(выполнено|провалено)/.test(t))remember('event',t,6);
+  else if(/^Новое задание/.test(t))remember('event',t,4);else if(/«Кобры»/.test(t))remember('event',t,6);else if(/^Ты передал Рико/.test(t))remember('event',t.replace('Ты передал Рико','Голос подарил мне'),5);
+  else if(/^Курьер привёз/.test(t))remember('event',t,3);else if(/угнал машину/.test(t))remember('event','Я угнал машину, розыск вырос.',5);else if(/Полиция выехала/.test(t))remember('event','За мной гналась полиция.',5)}
+const mtoks=t=>tokz(t).filter(w=>w.length>2&&!STOP.has(w)).map(stem);
+function recall(q,n){const qs=new Set(mtoks(q)),now=absH(C);
+  return MEM.map(m=>{let ov=0;for(const w of mtoks(m.t))if(qs.has(w))ov++;const age=Math.max(0,(now-((m.d-1)*24+m.h))/24);return{m,s:ov*2.5+m.imp*.35+Math.max(0,3-age)*.6+(m.k==='lesson'?1:0)}})
+    .sort((a,b)=>b.s-a.s).slice(0,n).map(x=>x.m)}
+function actEnum(){return['none',...AIDS.map(a=>'act:'+a),...Object.keys(LOC).map(l=>'goto:'+l),...Object.keys(MISSIONS).map(m=>'mission:'+m),...SHOP.map(s=>'buy:'+s.id),'post']}
+function actHelp(){return'act:<дело> — сделать дело ('+AIDS.map(k=>k+'='+ACT[k].n).join(', ')+'); goto:<место> — просто пойти ('+Object.keys(LOC).join(', ')+'); mission:<id> — взять подработку; buy:<товар> — заказать в интернете ('+SHOP.map(s=>s.id+'='+s.n+' $'+s.p).join(', ')+'); post — выложить фото; none — ничего не делать.'}
+const PERSONA=`Ты — Рико, 24 года, парень из приморского города Порт-Сол. Вернулся домой почти без денег, мечтаешь стать легендой города и купить маме дом. Характер: упрямый, ироничный, вспыльчивый, но добрый и верный своим. Говоришь по-русски, коротко и живо, как обычный парень, без мата и без канцелярита. Ты не ассистент и не ИИ — ты Рико. Тебе пишет загадочный «голос» по телефону; ты сам решаешь, верить ли ему. Ты помнишь прошлое по записям памяти и учишься на своих ошибках. Отвечай только JSON.
+Пример: {"reply":"Да норм всё, только жрать охота. Пойду к Розе за бургером.","thought":"Голос вроде нормальный, но странный.","mood":"спокоен","action":"act:eat"}`;
+function ctxBlock(q){const goals=MS.map(([k,n])=>`${C.ms[k]?'[x]':'[ ]'} ${n}`).join('; ');
+  const mem=recall(q||'',7).map(m=>`- (день ${m.d}${m.k==='lesson'?', урок':''}) ${m.t}`).join('\n')||'- пока ничего';
+  const av=Object.keys(MISSIONS).filter(missionAvail).map(id=>id+' — '+MISSIONS[id].from+': '+MISSIONS[id].title).join('; ')||'нет';
+  const plan=PLAN.day===C.day&&PLAN.steps.length?PLAN.steps.map((s,i)=>`${i<PLAN.i?'[x]':'[ ]'} ${planLabel(s.do)}`).join(', '):'нет';
+  return `СЕЙЧАС: ${stateLine(C)} Розыск ${stars()}/5. Погода: ${WN[WEATHER.t]}. Броня ${Math.round(C.armor||0)}.
+ЦЕЛИ: ${goals}.
+ДОВЕРИЕ К ГОЛОСУ: ${Math.round(MIND.trust)}/100${MIND.name?', голоса зовут '+MIND.name:''}.
+ЗАДАНИЕ: ${MISSION?MISSIONS[MISSION.id].title+', шаг: '+curStep()[1]:'нет'}. Подработки: ${av}.
+ПЛАН НА СЕГОДНЯ: ${plan}.
+НОВОСТЬ ГОРОДА: ${NET.news[0]?NET.news[0].t:'нет'}.
+ПАМЯТЬ:
+${mem}
+ДЕЙСТВИЯ: ${actHelp()}`}
+async function llm(messages,schema,maxTok,onText){
+  let out='',timings=null;const opts={messages,max_tokens:maxTok||200,temperature:AIcfg.temp,cache_prompt:true};
+  const run=async o=>{out='';await AI.w.createChatCompletion({...o,stream:true,onData:ch=>{const d=ch.choices&&ch.choices[0]&&ch.choices[0].delta;if(d&&d.content){out+=d.content;onText&&onText(out)}if(ch.timings)timings=ch.timings}})};
+  if(schema){opts.response_format={type:'json_schema',json_schema:{name:'out',schema,strict:true}};try{await run(opts)}catch(e){console.warn('schema off',e);opts.response_format={type:'json_object'};await run(opts)}}
+  else{opts.response_format={type:'json_object'};await run(opts)}
+  if(timings&&timings.predicted_per_second)AI.tps=timings.predicted_per_second;brainDirty=true;
+  let o=null;try{o=JSON.parse(out)}catch(e){const m=out.match(/\{[\s\S]*\}/);if(m)try{o=JSON.parse(m[0])}catch(e2){}}
+  return o||{reply:out.replace(/[{}"]/g,'').slice(0,300)};
 }
-function aiParse(text){let o=null;try{o=JSON.parse(text)}catch(e){const m=text.match(/\{[\s\S]*\}/);if(m)try{o=JSON.parse(m[0])}catch(e2){}}
-  if(!o||typeof o!=='object')return{r:text.replace(/[{}"]/g,'').slice(0,300)||'…'};
-  const b=[];if(ACT[o.plan])b.push({a:o.plan,w:2});if(ACT[o.avoid])b.push({a:o.avoid,w:-2.5});
-  return{r:String(o.reply||'…'),th:o.thought?String(o.thought):'',bias:b,hours:8,mission:o.mission}}
+const liveReply=t=>{const m=t.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)/);return m?m[1].replace(/\\n/g,' ').replace(/\\"/g,'"'):''};
+function planLabel(a){const[k,v]=String(a).split(':');return k==='act'&&ACT[v]?ACT[v].n:k==='goto'&&LOC[v]?'в «'+LOC[v].n+'»':k==='mission'&&MISSIONS[v]?'задание от '+MISSIONS[v].from:k==='buy'?'купить «'+((SHOP.find(s=>s.id===v)||{n:v}).n)+'»':a==='post'?'пост в ПортЛайф':String(a)}
+function execAction(a,src){a=String(a||'none');if(a==='none')return'';const[k,v]=a.split(':');
+  if(k==='act'&&ACT[v]){const i=AIDS.indexOf(v);if(!allowed(C,i)||control)return'';order=i;return ACT[v].n}
+  if(k==='goto'&&LOC[v]){if(control){gps=v;return'маршрут: '+LOC[v].n}order={goto:v};return'иду в «'+LOC[v].n+'»'}
+  if(k==='mission'&&MISSIONS[v]&&missionAvail(v)){acceptMission(v,src==='plan'?'rico':'you');return'беру задание'}
+  if(k==='buy'){const it=SHOP.find(s=>s.id===v);if(it&&C.phone&&C.money>=it.p&&(!it.need||it.need())){buy(it);return'заказал '+it.n}return''}
+  if(a==='post'&&socialPost())return'выложил фото';return''}
 async function aiChat(msgs){
-  const hist=[];for(const m of chat.filter(m=>(m.who==='me'||m.who==='rico')&&!msgs.includes(m)).slice(-6))hist.push({role:m.who==='me'?'user':'assistant',content:m.text});
-  const res=await AI.w.createChatCompletion({messages:[{role:'system',content:aiPrompt()},...hist,{role:'user',content:msgs.map(m=>m.text).join('\n')}],max_tokens:160,temperature:.8,response_format:{type:'json_object'}});
-  return aiParse(res.choices[0].message.content||'');
+  const hist=[];for(const m of chat.filter(m=>(m.who==='me'||m.who==='rico')&&!msgs.includes(m)).slice(-6))hist.push({role:m.who==='me'?'user':'assistant',content:m.who==='me'?m.text:JSON.stringify({reply:m.text})});
+  const text=msgs.map(m=>m.text).join('\n');
+  const schema={type:'object',properties:{reply:{type:'string'},thought:{type:'string'},mood:{type:'string',enum:['рад','спокоен','злой','грустный','устал','боится']},action:{type:'string',enum:actEnum()}},required:['reply','thought','mood','action']};
+  const bub={who:'rico',text:'…'};push(bub);const el=$('msgs').lastElementChild;
+  const o=await llm([{role:'system',content:PERSONA},...hist,{role:'user',content:ctxBlock(text)+'\n\nСООБЩЕНИЕ ОТ ГОЛОСА: '+text}],schema,220,t=>{const r=liveReply(t);if(r&&el&&el.firstChild){el.firstChild.textContent=r;$('msgs').scrollTop=1e9}});
+  const reply=String(o.reply||'…').slice(0,400);bub.text=reply;if(el&&el.firstChild)el.firstChild.textContent=reply;
+  remember('chat','Голос: «'+text.slice(0,90)+'». Я ответил: «'+reply.slice(0,80)+'»',3);
+  const did=execAction(o.action,'chat');if(o.mood){AI.mood=String(o.mood);brainDirty=true}
+  if(/дурак|идиот|туп|лох|урод/.test(text.toLowerCase()))trust(-6);else trust(1);
+  return{r:reply,th:(o.thought?String(o.thought):'')+(did?` (${did})`:''),streamed:true};
 }
-async function aiReflect(){
-  if(!AI.ready||AI.busy||asking||mindMode!=='ai'||AI.lastReflectDay===C.day)return;AI.lastReflectDay=C.day;AI.busy=true;
-  try{const res=await AI.w.createChatCompletion({messages:[{role:'system',content:aiPrompt()},{role:'user',content:'Наступило утро. Подумай про себя о вчерашнем дне: что получилось, что нет, чему научился, и реши, чем займёшься сегодня. В "reply" напиши короткий вывод-урок (одно предложение).'}],max_tokens:160,temperature:.8,response_format:{type:'json_object'}});
-    const r=aiParse(res.choices[0].message.content||'');if(r.mission&&MISSIONS[r.mission]&&missionAvail(r.mission))acceptMission(r.mission,'rico');
-    if(r.th)push({who:'th',text:'Утро. '+r.th});
-    if(r.r&&r.r!=='…'){MIND.diary=MIND.diary||[];MIND.diary.push(r.r.slice(0,160));if(MIND.diary.length>8)MIND.diary.shift();push({who:'th',text:'Вывод: '+r.r})}
-    if(r.bias.length)applyBias(r.bias,14);save();
-  }catch(e){console.error(e)}AI.busy=false;
+async function aiMorning(force){
+  if(!AI.ready||AI.busy||asking||mindMode!=='ai'||(!force&&PLAN.day===C.day))return;PLAN={day:C.day,steps:[],i:0};AI.busy=true;brainDirty=true;
+  const y=MEM.filter(m=>m.d===C.day-1||(force&&m.d===C.day)).slice(-12).map(m=>'- '+m.t).join('\n')||'- ничего особенного';
+  const schema={type:'object',properties:{summary:{type:'string'},lessons:{type:'array',items:{type:'string'},maxItems:2},plan:{type:'array',items:{type:'object',properties:{do:{type:'string',enum:actEnum().filter(a=>a!=='none')},why:{type:'string'}},required:['do','why']},minItems:2,maxItems:5},thought:{type:'string'}},required:['summary','lessons','plan','thought']};
+  try{const o=await llm([{role:'system',content:PERSONA},{role:'user',content:ctxBlock('план утро вчера урок ошибка')+`\n\nНЕДАВНО БЫЛО:\n${y}\n\nСейчас ${force?'день':'утро дня'} ${C.day}. Подумай о недавнем: что получилось, где ошибся. Сформулируй до 2 коротких уроков на будущее и составь план из 2–5 шагов (ешь и спи вовремя, двигайся к целям, учитывай уроки). Ответ — JSON с полями summary, lessons, plan [{do, why}], thought.`}],schema,400);
+    if(o.summary)remember('reflect','Итог: '+o.summary,4);
+    for(const l of (o.lessons||[]).slice(0,2)){remember('lesson',String(l),7);push({who:'th',text:'Урок: '+l})}
+    PLAN.steps=(o.plan||[]).filter(s=>s&&actEnum().includes(s.do)).slice(0,5).map(s=>({do:s.do,why:String(s.why||'').slice(0,80)}));
+    if(o.thought)push({who:'th',text:(force?'':'Утро. ')+o.thought});
+    if(PLAN.steps.length){push({who:'th',text:'План: '+PLAN.steps.map(s=>planLabel(s.do)).join(' → ')});remember('plan','План на день '+C.day+': '+PLAN.steps.map(s=>planLabel(s.do)).join(', '),2)}
+    lastAiErr='';save()}catch(e){console.error(e);lastAiErr=String(e&&e.message||e)}
+  AI.busy=false;brainDirty=true}
+function planTick(){
+  if(mindMode!=='ai'||!AI.ready||!AIcfg.drive||control||order||PLAN.day!==C.day||PLAN.i>=PLAN.steps.length)return;
+  if(C.food<18||C.energy<10||C.health<15||C.hour>=24||R()<.25)return;
+  const s=PLAN.steps[PLAN.i++];brainDirty=true;const did=execAction(s.do,'plan');push({who:'th',text:`По плану: ${planLabel(s.do)}${s.why?' — '+s.why:''}${did?'':' (не вышло)'}`})}
+async function aiProactive(t){AI.busy=true;try{const o=await llm([{role:'system',content:PERSONA},{role:'user',content:ctxBlock(t)+`\n\nТолько что случилось: «${t}». Напиши голосу короткое сообщение об этом от себя, 1–2 предложения. JSON: {"message":"..."}`}],{type:'object',properties:{message:{type:'string'}},required:['message']},90);
+  const msg=o.message||o.reply;if(msg){push({who:'rico',text:String(msg).slice(0,300),call:true});ring()}}catch(e){console.error(e)}AI.busy=false}
+function renderBrain(){if(app!=='brain'||!brainDirty)return;brainDirty=false;
+  $('brainHead').innerHTML='';const h=$('brainHead'),el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e};
+  if(!AI.ready){h.append(el('p','note','Нейросеть не загружена. В «Чате» нажми «Нейросеть» и выбери модель. Память Рико копится и без неё: '+MEM.length+' записей.'))}
+  else h.append(el('div','site-h','Мозг: '+AI.name),el('p','note',`Скорость: ${AI.tps?AI.tps.toFixed(1)+' токенов/с':'—'} · настроение: ${AI.mood||'—'} · ${AI.busy?'думает…':'свободен'}`));
+  if(lastAiErr)h.append(el('p','st','Ошибка: '+lastAiErr));
+  const b=$('brainBody');b.innerHTML='';
+  b.append(el('div','lbl','План на сегодня'));if(PLAN.day===C.day&&PLAN.steps.length){const ol=el('ol','plan');PLAN.steps.forEach((s,i)=>{const li=el('li',i<PLAN.i?'done':i===PLAN.i?'cur':'',planLabel(s.do)+(s.why?' — '+s.why:''));ol.append(li)});b.append(ol)}else b.append(el('p','note','Плана нет: он появится утром или по кнопке выше.'));
+  b.append(el('div','lbl','Уроки'));const ls=MEM.filter(m=>m.k==='lesson').slice(-6).reverse();if(ls.length){const ul=el('ul','plan');ls.forEach(m=>ul.append(el('li',null,`д${m.d}: ${m.t}`)));b.append(ul)}else b.append(el('p','note','Пока нет: появятся после первой ночи.'));
+  b.append(el('div','lbl',`Память (${MEM.length})`));const ul=el('ul','mem');MEM.slice(-10).reverse().forEach(m=>ul.append(el('li',null,`д${m.d} ${String(m.h).padStart(2,'0')}:00 · ${m.t}`)));b.append(ul);
 }
+$('aiDrive').onchange=e=>{AIcfg.drive=e.target.checked;save(true)};
+$('aiTemp').oninput=e=>{AIcfg.temp=+e.target.value;$('aiTempV').textContent=AIcfg.temp.toFixed(2)};
+$('aiPlanNow').onclick=()=>{if(!AI.ready){sys('Сначала загрузи нейросеть.');return}if(AI.busy){sys('Рико уже думает…');return}aiMorning(true)};
 $('ai-file').onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)aiLoad('file',f);e.target.value=''};
 $('ai-q15').onclick=()=>aiLoad('hf','q15');$('ai-q3').onclick=()=>aiLoad('hf','q3');
 $('ai-swap').onclick=()=>{AI.ready=false;aiUI()};
@@ -980,7 +1046,7 @@ document.querySelectorAll('#apps button').forEach(b=>b.onclick=()=>openApp(b.dat
 function renderApps(force){
   const jb=document.querySelector('#apps [data-app="jobs"]');jb.textContent='Задания'+(MISSION?' •':'');
   const cb=document.querySelector('#apps [data-app="chat"]');cb.textContent='Чат'+(unread?` (${unread})`:'');
-  if(app==='contacts'&&force)renderContacts();if(app==='jobs')renderJobs();if(app==='bank')renderBank();if(app==='map')drawMap();if(app==='radio'&&force)renderRadio();if(app==='cam'&&force)renderCam();if(app==='net')renderNet(force)}
+  if(app==='contacts'&&force)renderContacts();if(app==='jobs')renderJobs();if(app==='bank')renderBank();if(app==='map')drawMap();if(app==='radio'&&force)renderRadio();if(app==='cam'&&force)renderCam();if(app==='net')renderNet(force);if(app==='brain'){if(force)brainDirty=true;renderBrain()}}
 function renderContacts(){const box=$('contacts');box.innerHTML='';
   if(!C.phone){box.innerHTML='<p class="note">У Рико нет телефона, звонить не с чего. Подари ему телефон с полки или дождись, пока купит сам.</p>';return}
   for(const[id,n]of CONTACTS){const row=document.createElement('div');row.className='ct';row.innerHTML=`<div><b></b><div class="bar"><i class="t" style="width:${REL[id]}%"></i></div></div><button type="button">Позвонить</button>`;
@@ -1127,10 +1193,12 @@ function renderNet(force){if(app!=='net'||(!netDirty&&!force))return;netDirty=fa
     const worth=STOCKS.reduce((a,s)=>a+(NET.holdings[s.id]||0)*s.p,0);box.append(el('p','note',`Портфель Рико стоит: $${Math.round(worth)}`))}
   else{box.append(el('div','site-h','ПортЛайф'),el('p','note',`Подписчиков у Рико: ${NET.followers}`));
     const b=el('button','primary',PHOTOS.length?'Выложить последнее фото':'Сначала сделай фото в «Камере»');b.type='button';b.disabled=!PHOTOS.length||NET.lastPostDay===C.day;if(NET.lastPostDay===C.day)b.textContent='Сегодня уже выкладывал';
-    b.onclick=()=>{NET.lastPostDay=C.day;const likes=Math.round(NET.followers*(.1+R()*.3)+C.rep);NET.posts.unshift({who:'Рико',t:pick(['Мой город.','Порт-Сол не спит.','Вид, ради которого я вернулся.','Кто узнаёт место?']),d:C.day,h:C.hour,l:likes,img:PHOTOS[0].u});
-      NET.followers+=Math.round(likes/5);C.mood=Math.min(100,C.mood+6);C.rep+=1;sys(`Пост набрал ${likes} лайков.`);netDirty=true;renderNet(true);save(true)};box.append(b);
+    b.onclick=()=>{socialPost();renderNet(true)};box.append(b);
     for(const p of NET.posts.slice(0,15)){const a=el('article','nw');a.append(el('small',null,`${p.who} · д${p.d}`));if(p.img){const i=el('img');i.src=p.img;i.alt='Фото Рико';a.append(i)}a.append(el('p',null,p.t),el('small',null,`♥ ${p.l}`));box.append(a)}}
 }
+function socialPost(){if(!PHOTOS.length||NET.lastPostDay===C.day||!C.phone)return false;NET.lastPostDay=C.day;const likes=Math.round(NET.followers*(.1+R()*.3)+C.rep);
+  NET.posts.unshift({who:'Рико',t:pick(['Мой город.','Порт-Сол не спит.','Вид, ради которого я вернулся.','Кто узнаёт место?']),d:C.day,h:C.hour,l:likes,img:PHOTOS[0].u});
+  NET.followers+=Math.round(likes/5);C.mood=Math.min(100,C.mood+6);C.rep+=1;sys(`Пост Рико в ПортЛайф набрал ${likes} лайков.`);netDirty=true;save(true);return true}
 function spark(cv,h){const g=cv.getContext('2d');g.clearRect(0,0,120,32);if(h.length<2)return;const mn=Math.min(...h),mx=Math.max(...h);g.strokeStyle=h[h.length-1]>=h[0]?'#8bd17c':'#ff5d73';g.lineWidth=1.5;g.beginPath();
   h.forEach((v,i)=>{const x=2+i*(116/(h.length-1)),y=30-(v-mn)/(mx-mn||1)*28;i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke()}
 document.querySelectorAll('#sites button').forEach(b=>b.onclick=()=>{NET.site=b.dataset.site;netDirty=true;renderNet(true)});
@@ -1142,6 +1210,7 @@ function netTick(){const h=Math.floor(absH(C));if(NET.lastH<0)NET.lastH=h;if(h!=
 function frame(now){
   if(evoOn){if($('turbo').checked){const t0=performance.now();while(performance.now()-t0<30)evolveOnce()}else if(now-lastEvo>350){lastEvo=now;evolveOnce()}}
   const dt=Math.min(.1,(now-(lastFrame||now))/1000);lastFrame=now;
+  if(mindMode==='ai'&&AI.ready&&champ&&PLAN.day!==C.day&&C.hour<20&&!AI.busy&&!asking)aiMorning();
   cityTick(now);npcTick(now);if(ok3d&&champ){if(control)controlTick(dt);trafficTick(dt);copsTick(dt,now);beamTick(now)}else if(ok3d)trafficTick(dt);hud();wdt=dt;if(ok3d)sirenTick();netTick();
   const dur=Math.max(1,actUntil-showT0);showHour=showFrom+(showTo-showFrom)*clamp((now-showT0)/dur,0,1);
   if(shopSign&&C.shop!==shopSign.userData.s){shopSign.userData.s=C.shop}
@@ -1187,11 +1256,11 @@ const encG=g=>{const u=new Uint8Array(g.buffer);let s='';for(const b of u)s+=Str
 const decG=s=>{const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new Float32Array(u.buffer)};
 let saveT=0;
 function save(force){const now=Date.now();if(!force&&now-saveT<5000)return;saveT=now;
-  try{localStorage.setItem(KEY,JSON.stringify({gen,hist:hist.slice(-1500),pop:pop.map(encG),champ:champ&&encG(champ),champFit,C,chat:chat.slice(-120),inbox:inbox.map(m=>chat.indexOf(m)),bias:Array.from(cBias),cBiasUntil,MIND,mindMode,LEX,gta:{MISSION,REL,DONE,TX:TX.slice(-80),PHOTOS,lastMorningDay},net:{NET,STOCKS:STOCKS.map(s=>({id:s.id,p:s.p,h:s.h})),WEATHER}}))}catch(e){}}
+  try{localStorage.setItem(KEY,JSON.stringify({gen,hist:hist.slice(-1500),pop:pop.map(encG),champ:champ&&encG(champ),champFit,C,chat:chat.slice(-120),inbox:inbox.map(m=>chat.indexOf(m)),bias:Array.from(cBias),cBiasUntil,MIND,mindMode,LEX,gta:{MISSION,REL,DONE,TX:TX.slice(-80),PHOTOS,lastMorningDay},brain:{MEM:MEM.slice(-150),PLAN,AIcfg},net:{NET,STOCKS:STOCKS.map(s=>({id:s.id,p:s.p,h:s.h})),WEATHER}}))}catch(e){}}
 function load(){try{const t=localStorage.getItem(KEY);if(!t)return false;const o=JSON.parse(t);
   if(!o.pop||o.pop.length!==POP||decG(o.pop[0]).length!==NA*NF)return false;
   gen=o.gen;hist=o.hist;pop=o.pop.map(decG);champ=o.champ?decG(o.champ):null;champFit=o.champFit;notifiedFit=champFit;C=Object.assign(newEnv(),o.C);chat=o.chat||[];
-  inbox=(o.inbox||[]).map(i=>chat[i]).filter(Boolean);cBias=Float32Array.from(o.bias||new Array(NA).fill(0));cBiasUntil=o.cBiasUntil||0;Object.assign(MIND,o.MIND||{});mindMode=o.mindMode||'ai';if(o.LEX)Object.assign(LEX,o.LEX);if(o.gta){MISSION=o.gta.MISSION||null;Object.assign(REL,o.gta.REL||{});Object.assign(DONE,o.gta.DONE||{});TX=o.gta.TX||[];PHOTOS=o.gta.PHOTOS||[];lastMorningDay=o.gta.lastMorningDay||0}if(o.net){Object.assign(NET,o.net.NET||{});for(const x of o.net.STOCKS||[]){const s=STOCKS.find(y=>y.id===x.id);if(s){s.p=x.p;s.h=x.h||[]}}if(o.net.WEATHER)WEATHER=o.net.WEATHER}showFrom=showTo=absH(C);return true}catch(e){return false}}
+  inbox=(o.inbox||[]).map(i=>chat[i]).filter(Boolean);cBias=Float32Array.from(o.bias||new Array(NA).fill(0));cBiasUntil=o.cBiasUntil||0;Object.assign(MIND,o.MIND||{});mindMode=o.mindMode||'ai';if(o.LEX)Object.assign(LEX,o.LEX);if(o.gta){MISSION=o.gta.MISSION||null;Object.assign(REL,o.gta.REL||{});Object.assign(DONE,o.gta.DONE||{});TX=o.gta.TX||[];PHOTOS=o.gta.PHOTOS||[];lastMorningDay=o.gta.lastMorningDay||0}if(o.brain){MEM.push(...(o.brain.MEM||[]));if(o.brain.PLAN)PLAN=o.brain.PLAN;Object.assign(AIcfg,o.brain.AIcfg||{});$('aiDrive').checked=AIcfg.drive;$('aiTemp').value=AIcfg.temp;$('aiTempV').textContent=(+AIcfg.temp).toFixed(2)}if(o.net){Object.assign(NET,o.net.NET||{});for(const x of o.net.STOCKS||[]){const s=STOCKS.find(y=>y.id===x.id);if(s){s.p=x.p;s.h=x.h||[]}}if(o.net.WEATHER)WEATHER=o.net.WEATHER}showFrom=showTo=absH(C);return true}catch(e){return false}}
 
 /* ================= кнопки ================= */
 function setEvo(on){evoOn=on;$('evo').textContent=on?'Пауза эволюции':(gen?'Продолжить эволюцию':'Запустить эволюцию');$('evo').classList.toggle('primary',!on)}
@@ -1201,7 +1270,7 @@ $('follow').onclick=()=>{follow=!follow;$('follow').setAttribute('aria-pressed',
 let armed=false;
 $('reset').onclick=()=>{if(!armed){armed=true;$('reset').textContent='Точно? Ещё раз';setTimeout(()=>{armed=false;$('reset').textContent='Всё заново'},3000);return}
   armed=false;$('reset').textContent='Всё заново';initPop();C=newEnv();chat=[];inbox=[];cBias.fill(0);cBiasUntil=0;anim=null;actUntil=0;cur=null;order=null;showFrom=showTo=absH(C);
-  Object.assign(MIND,{trust:40,name:'',facts:[],gifts:[],giftDay:{}});Object.assign(LEX,{letters:{},words:{},bi:{},assoc:{},isa:{},nota:{},disp:{},heard:0,recent:[]});MISSION=null;TX=[];for(const k in DONE)delete DONE[k];Object.assign(NET,{news:[],posts:[],followers:40,lastPostDay:0,holdings:{},lastH:-1,lastDay:0});applyOutfit();if(control)setControl(false);gps=null;lexDirty=true;notifiedFit=-1e9;rerenderChat();setEvo(false);save(true);renderPanels();sys('Новая жизнь. Запусти эволюцию.')};
+  Object.assign(MIND,{trust:40,name:'',facts:[],gifts:[],giftDay:{}});Object.assign(LEX,{letters:{},words:{},bi:{},assoc:{},isa:{},nota:{},disp:{},heard:0,recent:[]});MISSION=null;TX=[];for(const k in DONE)delete DONE[k];MEM.length=0;PLAN={day:0,steps:[],i:0};Object.assign(NET,{news:[],posts:[],followers:40,lastPostDay:0,holdings:{},lastH:-1,lastDay:0});applyOutfit();if(control)setControl(false);gps=null;lexDirty=true;notifiedFit=-1e9;rerenderChat();setEvo(false);save(true);renderPanels();sys('Новая жизнь. Запусти эволюцию.')};
 window.addEventListener('pagehide',()=>save(true));
 
 if(!load())initPop();
@@ -1210,7 +1279,7 @@ setMode(mindMode);init3d();if(ok3d){initGta();initWeather();applyOutfit();if(C.c
 if(!chat.length)sys('Запусти эволюцию: лучший клон Рико появится в городе. Потом нажимай на здания, передавай вещи и пиши ему.');
 setInterval(renderPanels,300);requestAnimationFrame(frame);
 (async()=>{try{sample=window.claude?await window.claude.use('sample'):null}catch(e){sample=null}if(!sample&&mindMode==='claude')setMode('own')})();
-window.__t={gta:()=>({P3,lastP,control,MISSION,COPS:COPS.length,heat:C.heat,loc:C.loc,ctlNear}),evolveOnce,get gen(){return gen},get C(){return C},mindReply,get champ(){return champ}};
+window.__t={ai:AI,morning:aiMorning,plan:()=>PLAN,mem:()=>MEM,setMode,gta:()=>({P3,lastP,control,MISSION,COPS:COPS.length,heat:C.heat,loc:C.loc,ctlNear}),evolveOnce,get gen(){return gen},get C(){return C},mindReply,get champ(){return champ}};
 })();
 </script>
 
