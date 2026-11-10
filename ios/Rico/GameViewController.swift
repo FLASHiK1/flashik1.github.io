@@ -61,6 +61,8 @@ final class GameViewController: UIViewController, WKScriptMessageHandler, UIDocu
             pickModel()
         case "chat":
             chat(body)
+        case "embed":
+            embed(body)
         default:
             break
         }
@@ -162,6 +164,23 @@ final class GameViewController: UIViewController, WKScriptMessageHandler, UIDocu
         }
         if ok { scopedURL = u }
         loadModel(named: u.lastPathComponent)
+    }
+
+    // MARK: - Смысловые отпечатки
+
+    private func embed(_ body: [String: Any]) {
+        guard let id = body["id"] as? Int else { return }
+        let texts = body["texts"] as? [String] ?? []
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            do {
+                let vs = try self.engine.embed(texts)
+                let rounded: [[Double]] = vs.map { $0.map { (Double($0) * 10000).rounded() / 10000 } }
+                self.js("window.__llm.emb(\(id), \(self.jsonString(rounded)))")
+            } catch {
+                self.js("window.__llm.emb(\(id), null)")
+            }
+        }
     }
 
     // MARK: - Генерация

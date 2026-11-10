@@ -8,6 +8,9 @@ final class LlamaEngine {
     private var vocab: OpaquePointer?
     private var tmpl: String?
     private var cached: [llama_token] = []
+    private var ectx: OpaquePointer?
+    private var proj: [Float] = []
+    private static let embDim = 256
     private(set) var loadedName: String?
     var onProgress: ((Float) -> Void)?
     private static var backendReady = false
@@ -42,6 +45,8 @@ ws ::= | " " | "\n" [ \t]{0,20}
     }
 
     func unload() {
+        if let e = ectx { llama_free(e) }
+        ectx = nil
         if let c = ctx { llama_free(c) }
         if let m = model { llama_model_free(m) }
         ctx = nil; model = nil; vocab = nil; tmpl = nil; cached = []; loadedName = nil
@@ -152,6 +157,69 @@ ws ::= | " " | "\n" [ \t]{0,20}
         if isSingleSpecial("<start_of_turn>"), let p = applyTemplate("gemma", msgs) { return p }
         if let p = applyTemplate("chatml", msgs) { return p }
         return msgs.map { "\($0.0): \($0.1)" }.joined(separator: "\n") + "\nassistant: "
+    }
+
+    // MARK: - Смысловые отпечатки (эмбеддинги) для поиска воспоминаний по смыслу
+
+    /// Возвращает для каждого текста нормированный вектор из 256 чисел (случайная проекция среднего скрытого состояния модели).
+    func embed(_ texts: [String]) throws -> [[Float]] {
+        guard let model = model else { throw fail("Модель не загружена") }
+        if ectx == nil {
+            var cp = llama_context_default_params()
+            cp.n_ctx = 512
+            cp.n_batch = 512
+            cp.n_ubatch = 512
+            cp.embeddings = true
+            cp.pooling_type = LLAMA_POOLING_TYPE_MEAN
+            let th = Int32(max(2, min(6, ProcessInfo.processInfo.activeProcessorCount - 2)))
+            cp.n_threads = th
+            cp.n_threads_batch = th
+            ectx = llama_init_from_model(model, cp)
+            if ectx == nil { throw fail("Модель не умеет считать смысловые отпечатки") }
+        }
+        guard let ec = ectx else { return [] }
+        let n = Int(llama_model_n_embd(model))
+        let D = LlamaEngine.embDim
+        if proj.count != D * n {
+            var seed: UInt64 = 0x9E3779B97F4A7C15
+            proj = [Float](repeating: 0, count: D * n)
+            for i in 0..<(D * n) {
+                seed = seed &* 6364136223846793005 &+ 1442695040888963407
+                proj[i] = (seed >> 63) == 0 ? 1 : -1
+            }
+        }
+        var out: [[Float]] = []
+        for t in texts {
+            var toks = tokenize(t, addSpecial: true)
+            if toks.count > 500 { toks = Array(toks.prefix(500)) }
+            if toks.isEmpty { out.append([]); continue }
+            llama_memory_clear(llama_get_memory(ec), true)
+            var batch = llama_batch_init(Int32(toks.count), 0, 1)
+            for (i, tk) in toks.enumerated() {
+                batch.token[i] = tk
+                batch.pos[i] = Int32(i)
+                batch.n_seq_id[i] = 1
+                batch.seq_id[i]![0] = 0
+                batch.logits[i] = 1
+            }
+            batch.n_tokens = Int32(toks.count)
+            let rc = llama_decode(ec, batch)
+            llama_batch_free(batch)
+            guard rc == 0, let e = llama_get_embeddings_seq(ec, 0) else { out.append([]); continue }
+            var v = [Float](repeating: 0, count: D)
+            proj.withUnsafeBufferPointer { pp in
+                for r in 0..<D {
+                    var acc: Float = 0
+                    let base = r * n
+                    for c in 0..<n { acc += pp[base + c] * e[c] }
+                    v[r] = acc
+                }
+            }
+            let norm = sqrt(v.reduce(0) { $0 + $1 * $1 })
+            if norm > 0 { for i in 0..<D { v[i] /= norm } }
+            out.append(v)
+        }
+        return out
     }
 
     // MARK: - Генерация

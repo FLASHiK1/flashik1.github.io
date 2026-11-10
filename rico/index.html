@@ -711,24 +711,51 @@ async function aiLoad(kind,arg){
 /* ---- Мозг 2.0: память, план на день, уроки, действия ---- */
 const MEM=[];let PLAN={day:0,steps:[],i:0};const AIcfg={temp:.75,drive:true};let lastAiErr='',brainDirty=true;
 function remember(k,t,imp){MEM.push({d:C.day,h:Math.round(C.hour%24),k,t:String(t).slice(0,180),imp:imp||3});
-  if(MEM.length>150){let wi=0,ws=1e9;for(let i=0;i<MEM.length-20;i++){const s=MEM[i].imp*10+i*.05;if(s<ws){ws=s;wi=i}}MEM.splice(wi,1)}brainDirty=true}
+  if(MEM.length>500){let wi=0,ws=1e9;for(let i=0;i<MEM.length-20;i++){const s=MEM[i].imp*10+i*.05;if(s<ws){ws=s;wi=i}}MEM.splice(wi,1)}brainDirty=true}
 function memHook(t){if(/^Цель выполнена/.test(t))remember('event',t,9);else if(/арестовали/.test(t))remember('event',t,8);else if(/Задание .*(выполнено|провалено)/.test(t))remember('event',t,6);
   else if(/^Новое задание/.test(t))remember('event',t,4);else if(/«Кобры»/.test(t))remember('event',t,6);else if(/^Ты передал Рико/.test(t))remember('event',t.replace('Ты передал Рико','Голос подарил мне'),5);
   else if(/^Курьер привёз/.test(t))remember('event',t,3);else if(/угнал машину/.test(t))remember('event','Я угнал машину, розыск вырос.',5);else if(/Полиция выехала/.test(t))remember('event','За мной гналась полиция.',5)}
+/* ---- Долгая память: смысловой поиск, история разговоров, автобиография ---- */
+const EMB={ok:true,pend:{},seq:0,running:false,fails:0,lastTick:0};
+const BIO={text:'',day:0};
+function nembed(texts){return new Promise(res=>{if(!NATIVE||!EMB.ok){res(null);return}const id=++EMB.seq;EMB.pend[id]=res;nsend({cmd:'embed',id,texts});
+  setTimeout(()=>{if(EMB.pend[id]){delete EMB.pend[id];res(null)}},90000)})}
+const q8=v=>v.map(x=>Math.max(-127,Math.min(127,Math.round(x*400))));
+function cosv(a,b){if(!a||!b||a.length!==b.length)return 0;let d=0,na=0,nb=0;for(let i=0;i<a.length;i++){d+=a[i]*b[i];na+=a[i]*a[i];nb+=b[i]*b[i]}return na&&nb?d/Math.sqrt(na*nb):0}
+async function semQ(q){if(!NATIVE||!AI.ready||!EMB.ok||!q)return null;const r=await nembed([String(q).slice(0,400)]);return r&&r[0]&&r[0].length?r[0]:null}
+function embedTick(now){if(!NATIVE||!AI.ready||!EMB.ok||EMB.running||AI.busy||asking||now-EMB.lastTick<2500)return;EMB.lastTick=now;
+  const todo=MEM.filter(m=>!m.v&&!m.vf).slice(-8);if(!todo.length)return;EMB.running=true;
+  nembed(todo.map(m=>m.t)).then(vs=>{EMB.running=false;if(!vs){if(++EMB.fails>3)EMB.ok=false;return}EMB.fails=0;
+    vs.forEach((v,i)=>{if(v&&v.length)todo[i].v=q8(v);else todo[i].vf=1});if(vs.every(v=>!v||!v.length))EMB.ok=false;brainDirty=true})}
+function dlgRecall(q,n,skip){const qs=new Set(mtoks(q));if(!qs.size)return[];const lim=DLG.length-(skip||12);const out=[];
+  for(let i=0;i<lim;i++){const r=DLG[i];let ov=0;for(const w of mtoks(r.text))if(qs.has(w))ov++;if(ov)out.push({i,s:ov+i/DLG.length*.5})}
+  out.sort((a,b)=>b.s-a.s);const pickd=new Set(),lines=[];
+  for(const o of out.slice(0,n)){for(const j of[o.i,o.i+1]){if(j>=lim||pickd.has(j))continue;pickd.add(j);const r=DLG[j];lines.push(`- (день ${r.d}) ${r.who==='me'?'Голос':r.who==='npc'?r.name:'Я'}: «${r.text.slice(0,140)}»`)}}
+  return lines.slice(0,8)}
+function bioBlock(){return BIO.text?`МОЯ ИСТОРИЯ (кратко): ${BIO.text}\n`:''}
+function tmplBio(){const p=[];if(AMN.on){p.push(`Я очнулся на пляже Порт-Сола без памяти ${C.day-1} дн. назад.`);if(AMN.name)p.push(`Меня зовут ${AMN.name}.`);if(AMN.self)p.push(`Я — ${AMN.self}.`);
+    const k=Object.keys(AMN.known).filter(x=>LOC[x]);if(k.length)p.push(`Я знаю ${k.length} мест в городе.`);if(AMN.goal)p.push(`Хочу: ${AMN.goal}.`)}
+  else{const done=MS.filter(([k])=>C.ms[k]).map(([,n])=>n.toLowerCase());p.push(`Я Рико, живу в Порт-Соле уже ${C.day} дн.`);if(done.length)p.push(`Чего добился: ${done.join(', ')}.`)}
+  const past=MEM.filter(m=>m.k==='past').map(m=>m.t.replace('Обрывок прошлого из сна: ',''));if(past.length)p.push(`Из прошлого помню обрывки: ${past.slice(-3).join('; ')}.`);
+  const les=MEM.filter(m=>m.k==='lesson').slice(-3).map(m=>m.t);if(les.length)p.push(`Мои уроки: ${les.join('; ')}.`);return p.join(' ')}
+async function bioUpdate(force){if(!force&&C.day-BIO.day<3)return;const since=BIO.day;BIO.day=C.day;
+  const imp=MEM.filter(m=>m.d>=since&&m.imp>=5&&m.k!=='dream').slice(-25).map(m=>`- (день ${m.d}) ${m.t}`).join('\n');
+  let text='';if(AI.ready&&mindMode==='ai'&&!AI.busy){AI.busy=true;try{const o=await llm([{role:'system',content:(AMN.on?AMN_PERSONA:PERSONA)},{role:'user',content:`Твоя прежняя автобиография: ${BIO.text||'пока нет'}\n\nВажное, что случилось с тех пор:\n${imp||'- ничего особенного'}\n\n${AMN.on?`Имя: ${AMN.name||'неизвестно'}. Кто ты: ${AMN.self||'?'}. Цель: ${AMN.goal||'?'}.`:''}\nПерепиши свою автобиографию от первого лица: 5–8 предложений, самое важное о себе, людях вокруг, уроках и том, чего хочешь. Ничего важного не теряй. JSON: {"bio":"..."}`}],{type:'object',properties:{bio:{type:'string'}},required:['bio']},420);text=String(o.bio||'')}catch(e){console.error(e)}AI.busy=false}
+  BIO.text=(text||tmplBio()).slice(0,1400);brainDirty=true;save()}
 const mtoks=t=>tokz(t).filter(w=>w.length>2&&!STOP.has(w)).map(stem);
-function recall(q,n){const qs=new Set(mtoks(q)),now=absH(C);
-  return MEM.map(m=>{let ov=0;for(const w of mtoks(m.t))if(qs.has(w))ov++;const age=Math.max(0,(now-((m.d-1)*24+m.h))/24);return{m,s:ov*2.5+m.imp*.35+Math.max(0,3-age)*.6+(m.k==='lesson'?1:0)}})
+function recall(q,n,qv){const qs=new Set(mtoks(q)),now=absH(C);
+  return MEM.map(m=>{let ov=0;for(const w of mtoks(m.t))if(qs.has(w))ov++;const age=Math.max(0,(now-((m.d-1)*24+m.h))/24);const sem=qv&&m.v?Math.max(0,cosv(qv,m.v)-.2)*10:0;return{m,s:ov*2.5+m.imp*.35+Math.max(0,3-age)*.6+(m.k==='lesson'?1:0)+sem}})
     .sort((a,b)=>b.s-a.s).slice(0,n).map(x=>x.m)}
 function actEnum(){return['none',...AIDS.map(a=>'act:'+a),...Object.keys(LOC).map(l=>'goto:'+l),...Object.keys(MISSIONS).map(m=>'mission:'+m),...SHOP.map(s=>'buy:'+s.id),'post']}
 function actHelp(){return'act:<дело> — сделать дело ('+AIDS.map(k=>k+'='+ACT[k].n).join(', ')+'); goto:<место> — просто пойти ('+Object.keys(LOC).join(', ')+'); mission:<id> — взять подработку; buy:<товар> — заказать в интернете ('+SHOP.map(s=>s.id+'='+s.n+' $'+s.p).join(', ')+'); post — выложить фото; none — ничего не делать.'}
 const PERSONA=`Ты — Рико, 24 года, парень из приморского города Порт-Сол. Вернулся домой почти без денег, мечтаешь стать легендой города и купить маме дом. Характер: упрямый, ироничный, вспыльчивый, но добрый и верный своим. Говоришь по-русски, коротко и живо, как обычный парень, без мата и без канцелярита. Ты не ассистент и не ИИ — ты Рико. Тебе пишет загадочный «голос» по телефону; ты сам решаешь, верить ли ему. Ты помнишь прошлое по записям памяти и учишься на своих ошибках. Отвечай только JSON.
 Пример: {"reply":"Да норм всё, только жрать охота. Пойду к Розе за бургером.","thought":"Голос вроде нормальный, но странный.","mood":"спокоен","action":"act:eat"}`;
-function ctxBlock(q){const goals=MS.map(([k,n])=>`${C.ms[k]?'[x]':'[ ]'} ${n}`).join('; ');
-  const mem=recall(q||'',7).map(m=>`- (день ${m.d}${m.k==='lesson'?', урок':''}) ${m.t}`).join('\n')||'- пока ничего';
+function ctxBlock(q,qv){const goals=MS.map(([k,n])=>`${C.ms[k]?'[x]':'[ ]'} ${n}`).join('; ');
+  const mem=recall(q||'',7,qv).map(m=>`- (день ${m.d}${m.k==='lesson'?', урок':''}) ${m.t}`).join('\n')||'- пока ничего';
   const av=Object.keys(MISSIONS).filter(missionAvail).map(id=>id+' — '+MISSIONS[id].from+': '+MISSIONS[id].title).join('; ')||'нет';
   const plan=PLAN.day===C.day&&PLAN.steps.length?PLAN.steps.map((s,i)=>`${i<PLAN.i?'[x]':'[ ]'} ${planLabel(s.do)}`).join(', '):'нет';
   return `СЕЙЧАС: ${stateLine(C)} Розыск ${stars()}/5. Погода: ${WN[WEATHER.t]}. Броня ${Math.round(C.armor||0)}.
-ЦЕЛИ: ${goals}.
+${bioBlock()}ЦЕЛИ: ${goals}.
 ДОВЕРИЕ К ГОЛОСУ: ${Math.round(MIND.trust)}/100${MIND.name?', голоса зовут '+MIND.name:''}.
 ЗАДАНИЕ: ${MISSION?MISSIONS[MISSION.id].title+', шаг: '+curStep()[1]:'нет'}. Подработки: ${av}.
 ПЛАН НА СЕГОДНЯ: ${plan}.
@@ -759,7 +786,8 @@ async function aiChat(msgs){
   const schema={type:'object',properties:{reply:{type:'string'},thought:{type:'string'},mood:{type:'string',enum:['рад','спокоен','злой','грустный','устал','боится']},action:{type:'string',enum:actEnum()}},required:['reply','thought','mood','action']};
   if(AMN.on){const ao=amnOptions().concat('none');schema.properties.action={type:'string',enum:ao};schema.properties.name={type:'string'}}
   const bub={who:'rico',text:'…'};push(bub);const el=$('msgs').lastElementChild;
-  const o=await llm([{role:'system',content:AMN.on?AMN_PERSONA+' Сейчас тебе по телефону пишет незнакомый «голос». Если голос называет твоё имя и ты ему веришь, запиши его в поле name, иначе оставь name пустым. В action можешь выбрать вариант действия или none.':PERSONA},...hist,{role:'user',content:(AMN.on?amnCtx(text)+'\nВАРИАНТЫ: '+amnOptions().map(x=>x+' = '+optLabel(x)).join('; '):ctxBlock(text))+'\n\nСООБЩЕНИЕ ОТ ГОЛОСА: '+text}],schema,220,t=>{const r=liveReply(t);if(r&&el&&el.firstChild){el.firstChild.textContent=r;$('msgs').scrollTop=1e9}});
+  const qv=await semQ(text);const past=dlgRecall(text,4,msgs.length+6);const pastBlock=past.length?'\nИЗ ПРОШЛЫХ РАЗГОВОРОВ:\n'+past.join('\n'):'';
+  const o=await llm([{role:'system',content:AMN.on?AMN_PERSONA+' Сейчас тебе по телефону пишет незнакомый «голос». Если голос называет твоё имя и ты ему веришь, запиши его в поле name, иначе оставь name пустым. В action можешь выбрать вариант действия или none.':PERSONA},...hist,{role:'user',content:(AMN.on?amnCtx(text,qv)+'\nВАРИАНТЫ: '+amnOptions().map(x=>x+' = '+optLabel(x)).join('; '):ctxBlock(text,qv))+pastBlock+'\n\nСООБЩЕНИЕ ОТ ГОЛОСА: '+text}],schema,220,t=>{const r=liveReply(t);if(r&&el&&el.firstChild){el.firstChild.textContent=r;$('msgs').scrollTop=1e9}});
   const reply=String(o.reply||'…').slice(0,400);bub.text=reply;if(el&&el.firstChild)el.firstChild.textContent=reply;dlgAdd('rico','',reply);
   remember('chat','Голос: «'+text.slice(0,90)+'». Я ответил: «'+reply.slice(0,80)+'»',3);
   let did='';if(AMN.on){if(o.action&&o.action!=='none'){did=optLabel(o.action);amnExec(o.action,performance.now())}if(o.name&&String(o.name).trim()&&!AMN.name){AMN.name=String(o.name).trim().slice(0,30);sys('Он решил, что его зовут '+AMN.name+'.');remember('event','Голос сказал, что меня зовут '+AMN.name,7)}}else did=execAction(o.action,'chat');if(o.mood){AI.mood=String(o.mood);brainDirty=true}
@@ -792,7 +820,9 @@ function renderBrain(){if(app!=='brain'||!brainDirty)return;brainDirty=false;
   const b=$('brainBody');b.innerHTML='';
   b.append(el('div','lbl','План на сегодня'));if(PLAN.day===C.day&&PLAN.steps.length){const ol=el('ol','plan');PLAN.steps.forEach((s,i)=>{const li=el('li',i<PLAN.i?'done':i===PLAN.i?'cur':'',planLabel(s.do)+(s.why?' — '+s.why:''));ol.append(li)});b.append(ol)}else b.append(el('p','note','Плана нет: он появится утром или по кнопке выше.'));
   b.append(el('div','lbl','Уроки'));const ls=MEM.filter(m=>m.k==='lesson').slice(-6).reverse();if(ls.length){const ul=el('ul','plan');ls.forEach(m=>ul.append(el('li',null,`д${m.d}: ${m.t}`)));b.append(ul)}else b.append(el('p','note','Пока нет: появятся после первой ночи.'));
-  b.append(el('div','lbl',`Память (${MEM.length})`));const ul=el('ul','mem');MEM.slice(-10).reverse().forEach(m=>ul.append(el('li',null,`д${m.d} ${String(m.h).padStart(2,'0')}:00 · ${m.t}`)));b.append(ul);
+  b.append(el('div','lbl','Автобиография'));b.append(el('p',null,BIO.text||'Пока нет: появится после первых ночей.'));const bb=el('button',null,'Обновить автобиографию сейчас');bb.type='button';bb.onclick=()=>{BIO.day=-99;bioUpdate(true)};b.append(bb);
+  const nv=MEM.filter(m=>m.v).length;b.append(el('p','note',NATIVE?(EMB.ok?`Поиск по смыслу: проиндексировано ${nv} из ${MEM.length} воспоминаний.`:'Поиск по смыслу недоступен для этой модели: работает поиск по словам.'):'Поиск по смыслу работает в приложении для iPhone. Здесь — поиск по словам.'));
+  b.append(el('div','lbl',`Память (${MEM.length} из 500)`));const ul=el('ul','mem');MEM.slice(-10).reverse().forEach(m=>ul.append(el('li',null,`д${m.d} ${String(m.h).padStart(2,'0')}:00 · ${m.t}`)));b.append(ul);
 }
 $('aiDrive').onchange=e=>{AIcfg.drive=e.target.checked;save(true)};
 $('aiTemp').oninput=e=>{AIcfg.temp=+e.target.value;$('aiTempV').textContent=AIcfg.temp.toFixed(2)};
@@ -1250,7 +1280,7 @@ function netTick(){const h=Math.floor(absH(C));if(NET.lastH<0)NET.lastH=h;if(h!=
 /* ================= Нативная нейросеть (приложение iOS) ================= */
 const NATIVE=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.llm);
 const NL={seq:0,pend:{},st:null};
-window.__llm={chunk(id,t){const p=NL.pend[id];if(p)p.onData({choices:[{delta:{content:t}}]})},
+window.__llm={emb(id,v){const p=EMB.pend[id];if(p){delete EMB.pend[id];p(v)}},chunk(id,t){const p=NL.pend[id];if(p)p.onData({choices:[{delta:{content:t}}]})},
   done(id,st){const p=NL.pend[id];if(!p)return;delete NL.pend[id];p.onData({choices:[{delta:{}}],timings:{predicted_per_second:(st&&st.tps)||0}});p.res()},
   error(id,m){const p=NL.pend[id];if(!p)return;delete NL.pend[id];p.rej(new Error(m))},
   event(e){nativeEvent(e)}};
@@ -1278,7 +1308,7 @@ function amnStart(){
   if(control)setControl(false);evoOn=false;setEvo(false);
   C=newEnv();C.loc='beach';C.money=23;C.food=45;C.energy=60;C.mood=35;anim=null;actUntil=0;order=null;cur=null;showFrom=showTo=absH(C);
   Object.assign(AMN,{on:true,known:{},name:'',goal:'',self:'',knowMoney:false,thinking:false,obs:null,lastMorning:C.day});
-  MEM.length=0;PLAN={day:0,steps:[],i:0};MISSION=null;chat=[];inbox=[];rerenderChat();
+  MEM.length=0;BIO.text='';BIO.day=C.day;PLAN={day:0,steps:[],i:0};MISSION=null;chat=[];inbox=[];rerenderChat();
   for(const k in MIND)if(k==='trust')MIND.trust=30;MIND.name='';MIND.facts=[];MIND.gifts=[];
   remember('event','Очнулся на песке у моря. Голова гудит. Ничего не помню: ни имени, ни этого места, ни как сюда попал. В кармане какие-то бумажки и ключ с биркой.',10);
   sys('Он открыл глаза на песке. Он не помнит ничего. Даже своего имени.');push({who:'th',text:'Где я?.. Кто я?..'});
@@ -1294,21 +1324,21 @@ function amnOptions(){const o=[];for(const k in LOC)if(k!==C.loc)o.push('go:'+k)
 function optLabel(o){const[k,v]=o.split(':');if(k==='go')return'пойти: '+amnName(v);
   if(k==='act'){const kn=AMN.known[C.loc]&&AMN.known[C.loc].acts[v];return'попробовать «'+ACT[v].n+'»'+(ACT[v].cost?` (просят $${ACT[v].cost})`:'')+(kn?` — в прошлый раз: ${kn.last}`:'')}
   return{look:'осмотреться здесь',talk:'заговорить с человеком рядом',nap:'прикорнуть прямо тут',none:'ничего'}[o]||o}
-function amnCtx(q){const here=NPCS.filter(n=>!n.anim&&n.loc===C.loc).map(n=>n.gang?'хмурый парень в чёрном':(AMN.known['npc_'+n.n]?n.n:'незнакомец')).join(', ')||'никого';
+function amnCtx(q,qv){const here=NPCS.filter(n=>!n.anim&&n.loc===C.loc).map(n=>n.gang?'хмурый парень в чёрном':(AMN.known['npc_'+n.n]?n.n:'незнакомец')).join(', ')||'никого';
   const places=Object.keys(AMN.known).filter(k=>LOC[k]).map(k=>{const a=AMN.known[k].acts;const t=Object.keys(a).map(id=>`${ACT[id].n}: ${a[id].last}`).join('; ');return`- ${AMN.known[k].name}${t?' — '+t:''}`}).join('\n')||'- пока никаких';
-  const mem=recall(q||'',8).map(m=>`- (день ${m.d}) ${m.t}`).join('\n')||'- ничего';
+  const mem=recall(q||'',8,qv).map(m=>`- (день ${m.d}) ${m.t}`).join('\n')||'- ничего';
   return`ГДЕ ТЫ: ${amnName(C.loc)}${AMN.known[C.loc]?'':' (ты здесь впервые)'}. ${partOfDay(C.hour)}, погода: ${WN[WEATHER.t]}, день ${C.day} с пробуждения.
 ТЕЛО: ${sens()}.
 В КАРМАНЕ: ${C.money} долларов${AMN.knowMoney?'':' (ты пока не понимаешь, много это или мало)'}${C.phone?', телефон':''}${C.car?', ключи от машины':''}.
 РЯДОМ: ${here}.
-ИМЯ: ${AMN.name||'не помнишь'}. КТО ТЫ: ${AMN.self||'не знаешь'}. ЦЕЛЬ: ${AMN.goal||'нет, ты ещё сам не решил, чего хочешь'}.
+${bioBlock()}ИМЯ: ${AMN.name||'не помнишь'}. КТО ТЫ: ${AMN.self||'не знаешь'}. ЦЕЛЬ: ${AMN.goal||'нет, ты ещё сам не решил, чего хочешь'}.
 ЧТО ТЫ ПОМНИШЬ С МОМЕНТА ПРОБУЖДЕНИЯ:
 ${mem}
 ЧТО ТЫ УЗНАЛ О МЕСТАХ:
 ${places}`}
 const AMN_PERSONA=`Ты — человек, который очнулся на улице незнакомого приморского города после полной амнезии. Ты не помнишь ни своего имени, ни прошлого, ни как устроен этот город. У тебя нет заданных целей: ты сам решаешь, чего хочешь, исходя из ощущений, любопытства и опыта. Ты узнаёшь мир только через то, что сам попробовал, увидел или услышал от людей. Ты делаешь выводы из последствий своих поступков и запоминаешь их. Думаешь и говоришь по-русски, коротко и по-человечески. Отвечай только JSON.`;
-async function aiAmnDecide(){const opts=amnOptions();
-  const o=await llm([{role:'system',content:AMN_PERSONA},{role:'user',content:amnCtx(C.loc+' '+sens())+`\n\nВАРИАНТЫ (выбери id одного):\n${opts.map(x=>`${x} = ${optLabel(x)}`).join('\n')}\n\nПодумай, что ты чувствуешь и чего хочешь, учти прошлый опыт и выбери вариант. JSON: {"thought":"мысль","choice":"id"}`}],
+async function aiAmnDecide(){const opts=amnOptions();const qq=amnName(C.loc)+' '+sens();const qv=await semQ(qq);
+  const o=await llm([{role:'system',content:AMN_PERSONA},{role:'user',content:amnCtx(qq,qv)+`\n\nВАРИАНТЫ (выбери id одного):\n${opts.map(x=>`${x} = ${optLabel(x)}`).join('\n')}\n\nПодумай, что ты чувствуешь и чего хочешь, учти прошлый опыт и выбери вариант. JSON: {"thought":"мысль","choice":"id"}`}],
     {type:'object',properties:{thought:{type:'string'},choice:{type:'string',enum:opts}},required:['thought','choice']},140);
   if(o.thought)push({who:'th',text:String(o.thought).slice(0,240)});return opts.includes(o.choice)?o.choice:'look'}
 function amnSimple(){const opts=amnOptions(),has=o=>opts.includes(o);
@@ -1409,7 +1439,7 @@ async function dreamAndChapter(day){
       {role:'user',content:`События дня ${day}:\n${evs.map(x=>'- '+x).join('\n')||'- тихий день'}\n${frag?'Во сне должен всплыть обрывок прошлого: «'+frag+'».':''}\nНапиши: 1) сон Рико этой ночью: 2–3 предложения, странный, по мотивам дня${frag?', с этим обрывком прошлого':''}; 2) название и текст главы сериала об этом дне: 4–6 предложений, от третьего лица. JSON: {"dream":"...","title":"...","chapter":"..."}`}],
       {type:'object',properties:{dream:{type:'string'},title:{type:'string'},chapter:{type:'string'}},required:['dream','title','chapter']},420);dream=o.dream||'';title=o.title||'';text=o.chapter||''}catch(e){console.error(e)}AI.busy=false}}
   if(!dream)dream=tmplDream(evs,frag);if(!text){const c=tmplChapter(day,evs);title=c.title;text=c.text}
-  push({who:'th',text:'Сон: '+dream});remember('dream','Снилось: '+dream,frag?7:3);
+  push({who:'th',text:'Сон: '+dream});setTimeout(()=>bioUpdate(false),200);remember('dream','Снилось: '+dream,frag?7:3);
   if(frag){remember('past','Обрывок прошлого из сна: '+frag,8);sys('Во сне всплыл обрывок прошлого.');if(/Лина/.test(frag))C.linaHint=true}
   DIARY.unshift({day,title:String(title||'День '+day).slice(0,80),text:String(text).slice(0,1200),dream:String(dream).slice(0,500)});if(DIARY.length>60)DIARY.pop();diaryDirty=true;save()}
 function renderDiary(){if(app!=='diary'||!diaryDirty)return;diaryDirty=false;const box=$('diary');box.innerHTML='';
@@ -1481,7 +1511,7 @@ function frame(now){
   const dt=Math.min(.1,(now-(lastFrame||now))/1000);lastFrame=now;
   if(!AMN.on&&mindMode==='ai'&&AI.ready&&champ&&PLAN.day!==C.day&&C.hour<20&&!AI.busy&&!asking)aiMorning();
   if(AMN.on&&AI.ready&&AMN.lastMorning!==C.day&&C.hour<14&&!AI.busy&&!asking&&!AMN.thinking)amnMorning();
-  cityTick(now);npcTick(now);if(ok3d&&(champ||AMN.on)){if(control)controlTick(dt);trafficTick(dt);copsTick(dt,now);beamTick(now)}else if(ok3d)trafficTick(dt);hud();wdt=dt;nightTick();if(ok3d)sirenTick();netTick();
+  cityTick(now);npcTick(now);if(ok3d&&(champ||AMN.on)){if(control)controlTick(dt);trafficTick(dt);copsTick(dt,now);beamTick(now)}else if(ok3d)trafficTick(dt);hud();wdt=dt;nightTick();embedTick(now);if(ok3d)sirenTick();netTick();
   const dur=Math.max(1,actUntil-showT0);showHour=showFrom+(showTo-showFrom)*clamp((now-showT0)/dur,0,1);
   if(shopSign&&C.shop!==shopSign.userData.s){shopSign.userData.s=C.shop}
   render3d(now);
@@ -1517,7 +1547,7 @@ function renderPanels(){
   $('clock').textContent=`День ${C.day} · ${hhmm(showHour)}`;
   $('doing').textContent=AMN.thinking?'думает…':(!champ&&!AMN.on)?'ждёт эволюцию или амнезию':doingText();
   $('lx-heard').textContent=LEX.heard;renderLex();
-  if(lastItemsDay!==C.day||lastChamp!==!!champ){lastItemsDay=C.day;lastChamp=!!champ;renderItems()}
+  if(lastItemsDay!==C.day||lastChamp!==(!!champ||AMN.on)){lastItemsDay=C.day;lastChamp=!!champ||AMN.on;renderItems()}
   drawCurve();renderSig();
 }
 
@@ -1526,11 +1556,11 @@ const encG=g=>{const u=new Uint8Array(g.buffer);let s='';for(const b of u)s+=Str
 const decG=s=>{const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new Float32Array(u.buffer)};
 let saveT=0;
 function save(force){const now=Date.now();if(!force&&now-saveT<5000)return;saveT=now;
-  try{localStorage.setItem(KEY,JSON.stringify({gen,hist:hist.slice(-1500),pop:pop.map(encG),champ:champ&&encG(champ),champFit,C,chat:chat.slice(-120),inbox:inbox.map(m=>chat.indexOf(m)),bias:Array.from(cBias),cBiasUntil,MIND,mindMode,LEX,gta:{MISSION,REL,DONE,TX:TX.slice(-80),PHOTOS,lastMorningDay},brain:{MEM:MEM.slice(-150),PLAN,AIcfg},amn:{...AMN,thinking:false,obs:null},life:{NPCMEM,NIGHT,DIARY:DIARY.slice(0,40)},net:{NET,STOCKS:STOCKS.map(s=>({id:s.id,p:s.p,h:s.h})),WEATHER}}))}catch(e){}}
+  try{localStorage.setItem(KEY,JSON.stringify({gen,hist:hist.slice(-1500),pop:pop.map(encG),champ:champ&&encG(champ),champFit,C,chat:chat.slice(-120),inbox:inbox.map(m=>chat.indexOf(m)),bias:Array.from(cBias),cBiasUntil,MIND,mindMode,LEX,gta:{MISSION,REL,DONE,TX:TX.slice(-80),PHOTOS,lastMorningDay},brain:{MEM:MEM.slice(-500),PLAN,AIcfg,BIO},amn:{...AMN,thinking:false,obs:null},life:{NPCMEM,NIGHT,DIARY:DIARY.slice(0,40)},net:{NET,STOCKS:STOCKS.map(s=>({id:s.id,p:s.p,h:s.h})),WEATHER}}))}catch(e){}}
 function load(){try{const t=localStorage.getItem(KEY);if(!t)return false;const o=JSON.parse(t);
   const gOk=o.pop&&o.pop.length===POP&&decG(o.pop[0]).length===NA*NF;
   if(gOk){gen=o.gen;hist=o.hist;pop=o.pop.map(decG);champ=o.champ?decG(o.champ):null;champFit=o.champFit;notifiedFit=champFit}else{initPop();setTimeout(()=>sys('Мир расширился: эволюцию нужно запустить заново, чтобы Рико выучил новые места.'),500)}C=Object.assign(newEnv(),o.C);chat=o.chat||[];
-  inbox=(o.inbox||[]).map(i=>chat[i]).filter(Boolean);cBias=Float32Array.from(o.bias||new Array(NA).fill(0));cBiasUntil=o.cBiasUntil||0;Object.assign(MIND,o.MIND||{});mindMode=o.mindMode||'ai';if(o.LEX)Object.assign(LEX,o.LEX);if(o.gta){MISSION=o.gta.MISSION||null;Object.assign(REL,o.gta.REL||{});Object.assign(DONE,o.gta.DONE||{});TX=o.gta.TX||[];PHOTOS=o.gta.PHOTOS||[];lastMorningDay=o.gta.lastMorningDay||0}if(o.amn)Object.assign(AMN,o.amn,{thinking:false,obs:null});if(o.life){Object.assign(NPCMEM,o.life.NPCMEM||{});Object.assign(NIGHT,o.life.NIGHT||{});DIARY.push(...(o.life.DIARY||[]))}if(o.brain){MEM.push(...(o.brain.MEM||[]));if(o.brain.PLAN)PLAN=o.brain.PLAN;Object.assign(AIcfg,o.brain.AIcfg||{});$('aiDrive').checked=AIcfg.drive;$('aiTemp').value=AIcfg.temp;$('aiTempV').textContent=(+AIcfg.temp).toFixed(2)}if(o.net){Object.assign(NET,o.net.NET||{});for(const x of o.net.STOCKS||[]){const s=STOCKS.find(y=>y.id===x.id);if(s){s.p=x.p;s.h=x.h||[]}}if(o.net.WEATHER)WEATHER=o.net.WEATHER}showFrom=showTo=absH(C);return true}catch(e){return false}}
+  inbox=(o.inbox||[]).map(i=>chat[i]).filter(Boolean);cBias=Float32Array.from(o.bias||new Array(NA).fill(0));cBiasUntil=o.cBiasUntil||0;Object.assign(MIND,o.MIND||{});mindMode=o.mindMode||'ai';if(o.LEX)Object.assign(LEX,o.LEX);if(o.gta){MISSION=o.gta.MISSION||null;Object.assign(REL,o.gta.REL||{});Object.assign(DONE,o.gta.DONE||{});TX=o.gta.TX||[];PHOTOS=o.gta.PHOTOS||[];lastMorningDay=o.gta.lastMorningDay||0}if(o.amn)Object.assign(AMN,o.amn,{thinking:false,obs:null});if(o.life){Object.assign(NPCMEM,o.life.NPCMEM||{});Object.assign(NIGHT,o.life.NIGHT||{});DIARY.push(...(o.life.DIARY||[]))}if(o.brain){MEM.push(...(o.brain.MEM||[]));if(o.brain.BIO)Object.assign(BIO,o.brain.BIO);if(o.brain.PLAN)PLAN=o.brain.PLAN;Object.assign(AIcfg,o.brain.AIcfg||{});$('aiDrive').checked=AIcfg.drive;$('aiTemp').value=AIcfg.temp;$('aiTempV').textContent=(+AIcfg.temp).toFixed(2)}if(o.net){Object.assign(NET,o.net.NET||{});for(const x of o.net.STOCKS||[]){const s=STOCKS.find(y=>y.id===x.id);if(s){s.p=x.p;s.h=x.h||[]}}if(o.net.WEATHER)WEATHER=o.net.WEATHER}showFrom=showTo=absH(C);return true}catch(e){return false}}
 
 /* ================= кнопки ================= */
 function setEvo(on){evoOn=on;$('evo').textContent=on?'Пауза эволюции':(gen?'Продолжить эволюцию':'Запустить эволюцию');$('evo').classList.toggle('primary',!on)}
@@ -1540,7 +1570,7 @@ $('follow').onclick=()=>{follow=!follow;$('follow').setAttribute('aria-pressed',
 let armed=false;
 $('reset').onclick=()=>{if(!armed){armed=true;$('reset').textContent='Точно? Ещё раз';setTimeout(()=>{armed=false;$('reset').textContent='Всё заново'},3000);return}
   armed=false;$('reset').textContent='Всё заново';initPop();C=newEnv();chat=[];inbox=[];cBias.fill(0);cBiasUntil=0;anim=null;actUntil=0;cur=null;order=null;showFrom=showTo=absH(C);
-  Object.assign(MIND,{trust:40,name:'',facts:[],gifts:[],giftDay:{}});Object.assign(LEX,{letters:{},words:{},bi:{},assoc:{},isa:{},nota:{},disp:{},heard:0,recent:[]});MISSION=null;TX=[];for(const k in DONE)delete DONE[k];DLG.length=0;dlgSaveSoon();MEM.length=0;PLAN={day:0,steps:[],i:0};Object.assign(NET,{news:[],posts:[],followers:40,lastPostDay:0,holdings:{},lastH:-1,lastDay:0});applyOutfit();if(control)setControl(false);gps=null;lexDirty=true;notifiedFit=-1e9;rerenderChat();setEvo(false);save(true);renderPanels();sys('Новая жизнь. Запусти эволюцию.')};
+  Object.assign(MIND,{trust:40,name:'',facts:[],gifts:[],giftDay:{}});Object.assign(LEX,{letters:{},words:{},bi:{},assoc:{},isa:{},nota:{},disp:{},heard:0,recent:[]});MISSION=null;TX=[];for(const k in DONE)delete DONE[k];DLG.length=0;dlgSaveSoon();MEM.length=0;BIO.text='';BIO.day=0;PLAN={day:0,steps:[],i:0};Object.assign(NET,{news:[],posts:[],followers:40,lastPostDay:0,holdings:{},lastH:-1,lastDay:0});applyOutfit();if(control)setControl(false);gps=null;lexDirty=true;notifiedFit=-1e9;rerenderChat();setEvo(false);save(true);renderPanels();sys('Новая жизнь. Запусти эволюцию.')};
 window.addEventListener('pagehide',()=>save(true));
 
 if(!load())initPop();
