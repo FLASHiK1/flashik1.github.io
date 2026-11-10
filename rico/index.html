@@ -119,6 +119,9 @@ body.watching{overflow:hidden}
 body.watching #stage{position:fixed;inset:0;height:auto;z-index:60;border-radius:0}
 body.watching .subs{display:flex}
 body.watching .joy,body.watching .ctl{display:none!important}
+#histQ{font:14px var(--f-body);color:var(--fg);background:#201929;border:1px solid var(--line);border-radius:10px;padding:8px 12px;width:100%;box-sizing:border-box}
+.hist{gap:6px}.hist .hday{align-self:center;font:11px var(--f-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:6px}
+.hist .m{max-width:92%}.hist .m b{font-weight:600;margin-right:2px}.hist .m.npc{align-self:flex-start;background:#1f2a2a;color:#d9f2ee}
 .items{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
 .items button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:9px 11px}
 .items button b{font-weight:600}
@@ -185,7 +188,7 @@ body.watching .joy,body.watching .ctl{display:none!important}
     </div>
     <div class="phone">
       <div class="phone-top"><b>Рико</b><span class="sig" id="sig">нет телефона</span></div>
-      <nav class="apps" id="apps" aria-label="Приложения"><button type="button" data-app="chat" aria-pressed="true">Чат</button><button type="button" data-app="contacts" aria-pressed="false">Контакты</button><button type="button" data-app="jobs" aria-pressed="false">Задания</button><button type="button" data-app="map" aria-pressed="false">Карта</button><button type="button" data-app="bank" aria-pressed="false">Банк</button><button type="button" data-app="radio" aria-pressed="false">Радио</button><button type="button" data-app="cam" aria-pressed="false">Камера</button><button type="button" data-app="net" aria-pressed="false">Интернет</button><button type="button" data-app="brain" aria-pressed="false">Разум</button><button type="button" data-app="diary" aria-pressed="false">Дневник</button></nav>
+      <nav class="apps" id="apps" aria-label="Приложения"><button type="button" data-app="chat" aria-pressed="true">Чат</button><button type="button" data-app="contacts" aria-pressed="false">Контакты</button><button type="button" data-app="jobs" aria-pressed="false">Задания</button><button type="button" data-app="map" aria-pressed="false">Карта</button><button type="button" data-app="bank" aria-pressed="false">Банк</button><button type="button" data-app="radio" aria-pressed="false">Радио</button><button type="button" data-app="cam" aria-pressed="false">Камера</button><button type="button" data-app="net" aria-pressed="false">Интернет</button><button type="button" data-app="brain" aria-pressed="false">Разум</button><button type="button" data-app="diary" aria-pressed="false">Дневник</button><button type="button" data-app="hist" aria-pressed="false">История</button></nav>
       <div class="app" data-view="chat">
       <div class="mindsw"><button type="button" class="mode" data-m="ai" aria-pressed="false">Нейросеть</button><button type="button" class="mode" data-m="learn" aria-pressed="false">Учится говорить</button><button type="button" class="mode" data-m="own" aria-pressed="true">Свой разум</button><button type="button" class="mode" data-m="claude" aria-pressed="false">Claude</button><span class="trust" id="trust">доверие 40</span></div>
       <div class="aibox" id="aiBox" hidden>
@@ -211,6 +214,12 @@ body.watching .joy,body.watching .ctl{display:none!important}
       <div class="app" data-view="map" hidden><canvas id="minimap" width="300" height="300" aria-label="Карта Порт-Сола"></canvas><p class="note">Нажми на место на карте: Рико пойдёт туда. Если ты управляешь им сам, на месте появится жёлтый луч-маршрут. Красные точки — полиция.</p></div>
       <div class="app" data-view="bank" hidden><div class="lbl">Баланс</div><div class="money" id="bal"></div><ol class="tx" id="tx"></ol></div>
       <div class="app" data-view="radio" hidden><div id="stations"></div><p class="note">Музыка собирается прямо в телефоне. Если не слышно, проверь беззвучный режим.</p></div>
+      <div class="app" data-view="hist" hidden>
+        <input id="histQ" type="search" placeholder="Поиск по разговорам…" autocomplete="off">
+        <div class="sites" id="histF"><button type="button" data-f="all" aria-pressed="true">Все</button><button type="button" data-f="voice" aria-pressed="false">Ты и Рико</button><button type="button" data-f="npc" aria-pressed="false">Жители</button><button type="button" id="histCopy">Копировать</button></div>
+        <div class="note" id="histCount"></div>
+        <div class="netbody hist" id="histList"></div>
+      </div>
       <div class="app" data-view="diary" hidden><div id="diary" class="netbody"></div></div>
       <div class="app" data-view="brain" hidden>
         <div id="brainHead"></div>
@@ -621,7 +630,7 @@ function renderLex(){
 }
 
 /* ================= чат ================= */
-function push(m){m.d=C.day;m.h=C.hour;chat.push(m);if(WATCH.on)subtitle(m);if(TTS.on&&(m.who==='th'||m.who==='rico')&&!/^\(/.test(m.text))speak(m.text,m.who);if(chat.length>160)chat.splice(0,chat.length-160);renderMsg(m);if(app!=='chat'&&(m.who==='rico'||m.who==='sys')){unread++;renderApps()}}
+function push(m){m.d=C.day;m.h=C.hour;chat.push(m);if((m.who==='me'||(m.who==='rico'&&m.text!=='…'))&&!m.nolog)dlgAdd(m.who,'',m.text);if(WATCH.on)subtitle(m);if(TTS.on&&(m.who==='th'||m.who==='rico')&&!/^\(/.test(m.text))speak(m.text,m.who);if(chat.length>160)chat.splice(0,chat.length-160);renderMsg(m);if(app!=='chat'&&(m.who==='rico'||m.who==='sys')){unread++;renderApps()}}
 function sys(t){push({who:'sys',text:t});memHook(t)}
 function sys2(t,c){if(AMN.on&&/^Цель выполнена/.test(t))return;if(c==='big'||/Цель|Кобр|Арестован|больнице/.test(t))push({who:'sys',text:t})}
 function renderMsg(m){
@@ -751,7 +760,7 @@ async function aiChat(msgs){
   if(AMN.on){const ao=amnOptions().concat('none');schema.properties.action={type:'string',enum:ao};schema.properties.name={type:'string'}}
   const bub={who:'rico',text:'…'};push(bub);const el=$('msgs').lastElementChild;
   const o=await llm([{role:'system',content:AMN.on?AMN_PERSONA+' Сейчас тебе по телефону пишет незнакомый «голос». Если голос называет твоё имя и ты ему веришь, запиши его в поле name, иначе оставь name пустым. В action можешь выбрать вариант действия или none.':PERSONA},...hist,{role:'user',content:(AMN.on?amnCtx(text)+'\nВАРИАНТЫ: '+amnOptions().map(x=>x+' = '+optLabel(x)).join('; '):ctxBlock(text))+'\n\nСООБЩЕНИЕ ОТ ГОЛОСА: '+text}],schema,220,t=>{const r=liveReply(t);if(r&&el&&el.firstChild){el.firstChild.textContent=r;$('msgs').scrollTop=1e9}});
-  const reply=String(o.reply||'…').slice(0,400);bub.text=reply;if(el&&el.firstChild)el.firstChild.textContent=reply;
+  const reply=String(o.reply||'…').slice(0,400);bub.text=reply;if(el&&el.firstChild)el.firstChild.textContent=reply;dlgAdd('rico','',reply);
   remember('chat','Голос: «'+text.slice(0,90)+'». Я ответил: «'+reply.slice(0,80)+'»',3);
   let did='';if(AMN.on){if(o.action&&o.action!=='none'){did=optLabel(o.action);amnExec(o.action,performance.now())}if(o.name&&String(o.name).trim()&&!AMN.name){AMN.name=String(o.name).trim().slice(0,30);sys('Он решил, что его зовут '+AMN.name+'.');remember('event','Голос сказал, что меня зовут '+AMN.name,7)}}else did=execAction(o.action,'chat');if(o.mood){AI.mood=String(o.mood);brainDirty=true}
   if(/дурак|идиот|туп|лох|урод/.test(text.toLowerCase()))trust(-6);else trust(1);
@@ -1078,7 +1087,7 @@ document.querySelectorAll('#apps button').forEach(b=>b.onclick=()=>openApp(b.dat
 function renderApps(force){
   const jb=document.querySelector('#apps [data-app="jobs"]');jb.textContent='Задания'+(MISSION?' •':'');
   const cb=document.querySelector('#apps [data-app="chat"]');cb.textContent='Чат'+(unread?` (${unread})`:'');
-  if(app==='contacts'&&force)renderContacts();if(app==='jobs')renderJobs();if(app==='bank')renderBank();if(app==='map')drawMap();if(app==='radio'&&force)renderRadio();if(app==='cam'&&force)renderCam();if(app==='net')renderNet(force);if(app==='brain'){if(force)brainDirty=true;renderBrain()}if(app==='diary'){if(force)diaryDirty=true;renderDiary()}}
+  if(app==='contacts'&&force)renderContacts();if(app==='jobs')renderJobs();if(app==='bank')renderBank();if(app==='map')drawMap();if(app==='radio'&&force)renderRadio();if(app==='cam'&&force)renderCam();if(app==='net')renderNet(force);if(app==='brain'){if(force)brainDirty=true;renderBrain()}if(app==='diary'){if(force)diaryDirty=true;renderDiary()}if(app==='hist')renderHistory(force)}
 function renderContacts(){const box=$('contacts');box.innerHTML='';
   if(!C.phone){box.innerHTML='<p class="note">У Рико нет телефона, звонить не с чего. Подари ему телефон с полки или дождись, пока купит сам.</p>';return}
   for(const[id,n]of CONTACTS){const row=document.createElement('div');row.className='ct';row.innerHTML=`<div><b></b><div class="bar"><i class="t" style="width:${REL[id]}%"></i></div></div><button type="button">Позвонить</button>`;
@@ -1319,7 +1328,7 @@ function learnPlace(k,silent){if(AMN.known[k])return;AMN.known[k]={name:LOC[k].n
   if(k==='mom'){t='Женщина в доме с цветами бросилась меня обнимать: «Рико! Сынок! Где ты был?!» Это моя мать. Меня зовут Рико.';if(!AMN.name){AMN.name='Рико';sys('Он узнал своё имя: Рико.')}}
   remember('place',t,k==='mom'||k==='home'?9:4);if(!silent)push({who:'th',text:t})}
 function amnTalk(){const n=NPCS.find(x=>!x.anim&&x.loc===C.loc);if(!n)return;if(AMN.known['npc_'+n.n]){meet(n);return}const line=KNOWS[n.gang?'Кобра':n.n];const who=n.gang?'Хмурый парень':n.n;
-  AMN.known['npc_'+n.n]=1;push({who:'th',text:`${who}: «${line}»`});remember('talk',`${who} сказал мне: «${line}»`,6);
+  AMN.known['npc_'+n.n]=1;push({who:'th',text:`${who}: «${line}»`});dlgAdd('npc',who,line);remember('talk',`${who} сказал мне: «${line}»`,6);
   if(!AMN.name&&/Рико/.test(line)){AMN.name='Рико';sys('Он узнал своё имя: Рико.')}C.mood=Math.min(100,C.mood+3)}
 const amnSnap=()=>({m:C.money,f:C.food,e:C.energy,h:C.health,mo:C.mood,heat:C.heat,t:absH(C)});
 function amnObserve(id){if(!AMN.on||!AMN.obs||AMN.obs.id!==id)return;const a=AMN.obs.s,b=amnSnap();AMN.obs=null;const p=[];
@@ -1378,7 +1387,7 @@ function meet(o,amnFirst){const who=o.gang?'Кобра':o.n;const{key,line,tier}
   else if(key==='cobra'&&REL.cobra<20&&C.gang>=50&&R()<.25){C.health=Math.max(5,C.health-20);extra='«Кобры» толкнули Рико в стену: −20 здоровья.'}
   REL[key]=clamp((REL[key]??40)+d,0,100);fix(C);
   const name=AMN.on&&!AMN.known['npc_'+o.n]?(o.gang?'Хмурый парень':'Незнакомец'):who;
-  push({who:'th',text:`${name}: «${say}»`});if(extra)sys(extra);remember('talk',`${name} сказал: «${say}»${extra?' '+extra:''}`,extra?6:3)}
+  push({who:'th',text:`${name}: «${say}»`});dlgAdd('npc',name,say);if(extra)sys(extra);remember('talk',`${name} сказал: «${say}»${extra?' '+extra:''}`,extra?6:3)}
 
 /* ================= Сны, обрывки прошлого, дневник ================= */
 const PAST_FRAG=['запах машинного масла и чей-то голос: «Ты лучший механик на побережье, Рико»','мамины руки завязывают ему шарф на автобусной остановке: «Возвращайся, сынок»','девушка с короткими волосами смеётся на крыше — имя всплывает само: Лина','пять лет в сером городе, где он никого не знал','ночная трасса, визг тормозов, разбитая фара и чей-то крик','толстый конверт с нарисованной змеёй — долг, который он так и не вернул','у причала кто-то бьёт его сзади по голове. Песок. Темнота. На куртке нападавшего — змея'];
@@ -1417,6 +1426,24 @@ function rollWeather(){const s=seasonOf(C.day),r=R();
   if(s==='весна')return r<.5?'clear':r<.8?'rain':r<.92?'fog':'storm';
   return r<.7?'clear':r<.85?'rain':r<.92?'fog':'storm'}
 
+/* ================= История диалогов ================= */
+const DLG=[];let dlgDirty=true,dlgFilter='all',dlgQuery='';
+const DLG_KEY=KEY+'-dlg';
+function dlgAdd(who,name,text){DLG.push({d:C.day,h:Math.round((C.hour%24)*10)/10,who,name,text:String(text).slice(0,600)});if(DLG.length>3000)DLG.splice(0,DLG.length-3000);dlgDirty=true;dlgSaveSoon()}
+let dlgT=null;function dlgSaveSoon(){clearTimeout(dlgT);dlgT=setTimeout(()=>{try{localStorage.setItem(DLG_KEY,JSON.stringify(DLG))}catch(e){}},1500)}
+function dlgLoad(){try{const t=localStorage.getItem(DLG_KEY);if(t)DLG.push(...JSON.parse(t))}catch(e){}}
+function renderHistory(force){if(app!=='hist'||(!dlgDirty&&!force))return;dlgDirty=false;
+  const box=$('histList');box.innerHTML='';const q=dlgQuery.trim().toLowerCase();
+  const rows=DLG.filter(r=>(dlgFilter==='all'||(dlgFilter==='voice'?r.who!=='npc':r.who==='npc'))&&(!q||r.text.toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)));
+  $('histCount').textContent=rows.length?`Реплик: ${rows.length}`:'';
+  if(!rows.length){box.innerHTML='<p class="note">'+(DLG.length?'Ничего не найдено.':'Разговоров пока нет. Здесь копится всё, что ты писал Рико, его ответы и разговоры с жителями города.')+'</p>';return}
+  let day=-1;const frag=document.createDocumentFragment();
+  for(const r of rows.slice(-400)){if(r.d!==day){day=r.d;const h=document.createElement('div');h.className='hday';h.textContent='День '+day;frag.append(h)}
+    const d=document.createElement('div');d.className='m '+(r.who==='me'?'me':r.who==='npc'?'npc':'rico');
+    const nm=document.createElement('b');nm.textContent=r.who==='me'?'Ты':r.who==='npc'?r.name:(AMN.on&&!AMN.name?'Он':'Рико');d.append(nm,document.createTextNode(' '+r.text));
+    const sm=document.createElement('small');sm.textContent=hhmm(r.h);d.append(sm);frag.append(d)}
+  box.append(frag);box.scrollTop=box.scrollHeight}
+function dlgText(){return DLG.map(r=>`[день ${r.d}, ${hhmm(r.h)}] ${r.who==='me'?'Ты':r.who==='npc'?r.name:'Рико'}: ${r.text}`).join('\n')}
 /* ================= Наблюдение: кинокамера и субтитры ================= */
 const WATCH={on:false,cam:'back',auto:false,autoT:0,autoCam:'back',orbitA:0};
 const _v=window.THREE?new THREE.Vector3():null,_t=window.THREE?new THREE.Vector3():null;
@@ -1439,6 +1466,9 @@ function setWatch(on){WATCH.on=on;document.body.classList.toggle('watching',on);
   else{try{document.fullscreenElement&&document.exitFullscreen()}catch(e){}}
   setTimeout(resize3d,50)}
 $('watch').onclick=()=>setWatch(!WATCH.on);
+dlgLoad();$('histQ').oninput=e=>{dlgQuery=e.target.value;renderHistory(true)};
+document.querySelectorAll('#histF [data-f]').forEach(b=>b.onclick=()=>{dlgFilter=b.dataset.f;document.querySelectorAll('#histF [data-f]').forEach(o=>o.setAttribute('aria-pressed',o===b));renderHistory(true)});
+$('histCopy').onclick=()=>{const t=dlgText();if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>sys('История разговоров скопирована.'),()=>sys('Не удалось скопировать.'));else sys('Копирование недоступно.')};
 ttsInit();document.querySelectorAll('.tts').forEach(b=>b.onclick=()=>setTts(!TTS.on));$('wexit').onclick=()=>setWatch(false);
 document.querySelectorAll('#wbar [data-cam]').forEach(b=>b.onclick=()=>{const c=b.dataset.cam;WATCH.auto=c==='auto';if(!WATCH.auto)WATCH.cam=c;WATCH.autoT=0;
   document.querySelectorAll('#wbar [data-cam]').forEach(o=>o.setAttribute('aria-pressed',o===b))});
@@ -1510,7 +1540,7 @@ $('follow').onclick=()=>{follow=!follow;$('follow').setAttribute('aria-pressed',
 let armed=false;
 $('reset').onclick=()=>{if(!armed){armed=true;$('reset').textContent='Точно? Ещё раз';setTimeout(()=>{armed=false;$('reset').textContent='Всё заново'},3000);return}
   armed=false;$('reset').textContent='Всё заново';initPop();C=newEnv();chat=[];inbox=[];cBias.fill(0);cBiasUntil=0;anim=null;actUntil=0;cur=null;order=null;showFrom=showTo=absH(C);
-  Object.assign(MIND,{trust:40,name:'',facts:[],gifts:[],giftDay:{}});Object.assign(LEX,{letters:{},words:{},bi:{},assoc:{},isa:{},nota:{},disp:{},heard:0,recent:[]});MISSION=null;TX=[];for(const k in DONE)delete DONE[k];MEM.length=0;PLAN={day:0,steps:[],i:0};Object.assign(NET,{news:[],posts:[],followers:40,lastPostDay:0,holdings:{},lastH:-1,lastDay:0});applyOutfit();if(control)setControl(false);gps=null;lexDirty=true;notifiedFit=-1e9;rerenderChat();setEvo(false);save(true);renderPanels();sys('Новая жизнь. Запусти эволюцию.')};
+  Object.assign(MIND,{trust:40,name:'',facts:[],gifts:[],giftDay:{}});Object.assign(LEX,{letters:{},words:{},bi:{},assoc:{},isa:{},nota:{},disp:{},heard:0,recent:[]});MISSION=null;TX=[];for(const k in DONE)delete DONE[k];DLG.length=0;dlgSaveSoon();MEM.length=0;PLAN={day:0,steps:[],i:0};Object.assign(NET,{news:[],posts:[],followers:40,lastPostDay:0,holdings:{},lastH:-1,lastDay:0});applyOutfit();if(control)setControl(false);gps=null;lexDirty=true;notifiedFit=-1e9;rerenderChat();setEvo(false);save(true);renderPanels();sys('Новая жизнь. Запусти эволюцию.')};
 window.addEventListener('pagehide',()=>save(true));
 
 if(!load())initPop();
