@@ -64,8 +64,11 @@ jobs:
           cd ios
           APP=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -1)
           echo "App: $APP"
-          rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
-          zip -qry Rico.ipa Payload
+          rm -rf Payload Rico.ipa && mkdir Payload && ditto "$APP" "Payload/$(basename "$APP")"
+          xattr -cr Payload || true
+          ditto -c -k --sequesterRsrc --keepParent Payload Rico.ipa
+          unzip -tq Rico.ipa
+          unzip -l Rico.ipa | head -20
           ls -lh Rico.ipa
 
       - uses: actions/upload-artifact@v4
