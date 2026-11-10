@@ -1,9 +1,6 @@
 name: iOS IPA
 
 on:
-  push:
-    branches: [main, claude/practical-brown-3zz5le]
-    paths: ['ios/**', 'rico/**', '.github/workflows/ios.yml']
   workflow_dispatch:
 
 permissions:
