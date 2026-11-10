@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Порт-Сол 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 3D-город крупно + телефон Рико; под ними полка с предметами; ниже эволюция и состояние. Единая закатная тема. */
+:root{
+  --bg:#16111d; --panel:#201929; --line:#382d45; --fg:#f3ebe6; --muted:#a898a9;
+  --sun:#ff8a4c; --teal:#2ec4b6; --bad:#ff5d73; --good:#8bd17c; --blue:#5ec8f2;
+  --f-display:"Russo One","Golos Text",system-ui,sans-serif;
+  --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--f-body);font-size:14px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 28px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
+h1{font-family:var(--f-display);font-weight:400;font-size:26px;margin:0;color:var(--sun);letter-spacing:.02em;text-wrap:balance}
+h1 small{display:block;font-family:var(--f-body);font-size:13px;color:var(--muted);letter-spacing:0;margin-top:4px;max-width:70ch}
+.controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button,.chk{font:500 13px var(--f-body);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--muted)}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid var(--sun);outline-offset:2px}
+button.primary{background:var(--sun);border-color:var(--sun);color:#24110a;font-weight:600}
+button[aria-pressed="true"]{background:var(--teal);border-color:var(--teal);color:#06201d}
+.chk{display:flex;gap:6px;align-items:center}
+.chk input{accent-color:var(--sun)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;align-items:start}
+@media (max-width:940px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+.view{padding:8px;position:relative}
+#stage{position:relative;height:540px;border-radius:6px;overflow:hidden;background:#0e0b16;touch-action:none}
+@media (max-width:600px){#stage{height:400px}}
+#stage canvas{display:block;width:100%;height:100%}
+.menu{position:absolute;z-index:5;background:#1a1422f2;border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:5px;min-width:200px;max-width:260px;box-shadow:0 8px 30px #0008}
+.menu[hidden]{display:none}
+.menu b{font-family:var(--f-display);font-weight:400;font-size:15px;color:var(--sun)}
+.menu button{text-align:left;padding:6px 10px}
+.menu small{color:var(--muted);font-size:11.5px}
+.under{display:flex;justify-content:space-between;gap:8px;font:12px var(--f-mono);color:var(--muted);padding:8px 2px 0;font-variant-numeric:tabular-nums;flex-wrap:wrap}
+.lbl{font:11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px}
+.phone{background:#0f0b14;border:2px solid #3b3048;border-radius:22px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.phone-top{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:0 4px}
+.phone-top b{font-family:var(--f-display);font-weight:400;font-size:16px}
+.sig{font:11px var(--f-mono);color:var(--muted);text-align:right}
+.sig.on{color:var(--good)}
+.mindsw{display:flex;gap:6px;align-items:center;padding:0 4px;flex-wrap:wrap}
+.mindsw button{padding:4px 10px;font-size:12px;border-radius:14px}
+.trust{font:11px var(--f-mono);color:var(--muted);margin-left:auto}
+.msgs{height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:6px 4px;scroll-behavior:smooth}
+.m{max-width:85%;padding:7px 10px;border-radius:12px;font-size:13.5px;overflow-wrap:anywhere}
+.m.me{align-self:flex-end;background:var(--blue);color:#04202c;border-bottom-right-radius:4px}
+.m.rico{align-self:flex-start;background:#2c2338;border-bottom-left-radius:4px}
+.m.th{align-self:flex-start;max-width:95%;padding:0 4px;color:var(--muted);font-style:italic;font-size:12.5px}
+.m.sys{align-self:center;max-width:95%;color:var(--sun);font:11.5px var(--f-mono);text-align:center;padding:2px}
+.m small{display:block;font:10.5px var(--f-mono);opacity:.65;margin-top:2px}
+.m.me small{text-align:right}
+.send{display:flex;gap:6px}
+.send input{flex:1;min-width:0;font:14px var(--f-body);color:var(--fg);background:#201929;border:1px solid var(--line);border-radius:18px;padding:9px 14px}
+.send button{border-radius:18px}
+.phone .chk{background:none;border:none;padding:0 4px;font-size:12px;color:var(--muted)}
+@keyframes ring{0%,100%{transform:none;border-color:#3b3048}15%,45%,75%{transform:rotate(-1deg);border-color:var(--sun)}30%,60%,90%{transform:rotate(1deg);border-color:var(--sun)}}
+.phone.ring{animation:ring 1.2s ease}
+.aibox{background:#1a1422;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px}
+.aibox p{margin:4px 0;color:var(--muted)}.aibox code{font-family:var(--f-mono);color:var(--fg)}
+.aibtns{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.filebtn{display:block;text-align:center;font:600 13px var(--f-body);background:var(--sun);color:#24110a;border-radius:6px;padding:9px 12px;cursor:pointer;margin-top:6px}
+.filebtn input{position:absolute;width:1px;height:1px;opacity:0}
+.aibox .st{color:var(--sun);font:12px var(--f-mono)}
+#ai-ok button{padding:2px 8px;font-size:12px}
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.items button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:9px 11px}
+.items button b{font-weight:600}
+.items button small{color:var(--muted);font-size:11.5px}
+.lvl{font:12px var(--f-mono);color:#06201d;background:var(--teal);border-radius:12px;padding:2px 10px}
+.abc{display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:4px;margin-bottom:12px}
+.abc span{font:500 16px var(--f-mono);text-align:center;padding:4px 0;border:1px solid var(--line);border-radius:5px}
+.abc span.ok{border-color:var(--teal);color:var(--teal)}
+.lx{margin-bottom:8px}.lx p{margin:2px 0 0;font-size:13.5px;overflow-wrap:anywhere}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpis div{background:#16111d;border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0}
+.kpis b{display:block;font:500 19px var(--f-mono);color:var(--sun);font-variant-numeric:tabular-nums}
+.kpis small{color:var(--muted);font-size:11.5px}
+.legend{display:flex;gap:14px;font:11.5px var(--f-mono);color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+.bars{display:grid;grid-template-columns:86px 1fr 46px;gap:5px 8px;align-items:center;font-variant-numeric:tabular-nums}
+.bar{height:7px;background:#120e17;border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--good);transition:width .25s}
+.bar i.warn{background:var(--sun)} .bar i.crit{background:var(--bad)} .bar i.t{background:var(--teal)}
+.num{font:12px var(--f-mono);text-align:right;color:var(--muted)}
+.ms{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.ms li{display:grid;grid-template-columns:18px 1fr auto;gap:6px;align-items:baseline;color:var(--muted)}
+.ms li::before{content:"";width:10px;height:10px;border-radius:3px;border:1.5px solid var(--line);margin-top:3px}
+.ms li.done::before{background:var(--good);border-color:var(--good)}
+.ms li.done{color:var(--fg)}
+.ms small{font:11px var(--f-mono);color:var(--muted)}
+.money{font:500 24px var(--f-mono);color:var(--good)}
+.money.neg{color:var(--bad)}
+.note{color:var(--muted);font-size:12.5px;max-width:80ch;margin:0}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}.msgs{scroll-behavior:auto}.phone.ring{animation:none;border-color:var(--sun)}}
+</style>
+
+</head><body>
+<div class="wrap">
+  <header>
+    <h1>Порт-Сол 3D<small>Рико хочет стать легендой города, а мозг ему выводит эволюция. Нажми на здание, чтобы отправить его туда. Передавай ему вещи, пиши на телефон: отвечает его собственный разум, Claude для этого не нужен.</small></h1>
+    <div class="controls">
+      <button id="evo" class="primary" type="button">Запустить эволюцию</button>
+      <label class="chk"><input id="turbo" type="checkbox"> Турбо</label>
+      <button type="button" class="spd" data-s="1">×1</button>
+      <button type="button" class="spd" data-s="3" aria-pressed="true">×3</button>
+      <button type="button" class="spd" data-s="10">×10</button>
+      <button id="follow" type="button" aria-pressed="false">Камера за Рико</button>
+      <button id="reset" type="button">Всё заново</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="card view">
+      <div id="stage"><div class="menu" id="menu" hidden></div></div>
+      <div class="under"><span id="clock">День 1 · 08:00</span><span id="doing">—</span></div>
+    </div>
+    <div class="phone">
+      <div class="phone-top"><b>Рико</b><span class="sig" id="sig">нет телефона</span></div>
+      <div class="mindsw"><button type="button" class="mode" data-m="ai" aria-pressed="false">Нейросеть</button><button type="button" class="mode" data-m="learn" aria-pressed="false">Учится говорить</button><button type="button" class="mode" data-m="own" aria-pressed="true">Свой разум</button><button type="button" class="mode" data-m="claude" aria-pressed="false">Claude</button><span class="trust" id="trust">доверие 40</span></div>
+      <div class="aibox" id="aiBox" hidden>
+        <div id="ai-load">
+          <b>Мозг-нейросеть прямо на телефоне</b>
+          <p>Модель работает у тебя, без интернета и без Claude. Подойдут файлы <code>.gguf</code> размером до 2 ГБ (модели 1–3B, Q4).</p>
+          <label class="filebtn">Выбрать файл .gguf<input id="ai-file" type="file" accept=".gguf,application/octet-stream"></label>
+          <div class="aibtns"><button id="ai-q3" type="button">Скачать Qwen2.5 3B (~1.9 ГБ)</button><button id="ai-q15" type="button">Скачать Qwen2.5 1.5B (~1.1 ГБ)</button></div>
+          <p class="st" id="ai-st"></p>
+        </div>
+        <div id="ai-ok" hidden>Думает моделью: <b id="ai-name"></b> · <button id="ai-swap" type="button">сменить</button></div>
+      </div>
+      <div class="msgs" id="msgs" aria-live="polite"></div>
+      <label class="chk"><input id="thoughts" type="checkbox" checked> Показывать мысли</label>
+      <form class="send" id="sendf">
+        <input id="inp" type="text" maxlength="300" placeholder="Написать Рико…" autocomplete="off">
+        <button type="submit" class="primary">Отправить</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Передать Рико (каждую вещь можно передать раз в игровой день)</div>
+    <div class="items" id="items"></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><div class="lbl">Речь и логика Рико</div><span class="lvl" id="lx-level">Учит буквы</span></div>
+    <div class="kpis" style="margin-bottom:12px">
+      <div><b id="lx-letters">0/33</b><small>букв выучил</small></div>
+      <div><b id="lx-words">0</b><small>слов знает</small></div>
+      <div><b id="lx-facts">0</b><small>логических фактов</small></div>
+      <div><b id="lx-heard">0</b><small>сообщений услышал</small></div>
+    </div>
+    <div class="abc" id="abc" aria-label="Алфавит: яркие буквы выучены"></div>
+    <div class="lx"><span class="lbl">Самые частые слова</span><p id="lx-top"></p></div>
+    <div class="lx"><span class="lbl">Логика (что чем является)</span><p id="lx-logic"></p></div>
+    <div class="lx"><span class="lbl">Понимает по опыту (слово → дело)</span><p id="lx-assoc"></p></div>
+    <p class="note">Как учить: включи «Учится говорить» и просто пиши ему. Букву он выучивает, когда увидит её в твоих сообщениях дважды, и слово тоже — когда встретит его дважды. Сначала он лепечет и повторяет слова с пропусками («к·шка»), потом говорит словами, потом фразами, которые собирает из твоих же сообщений. Логика: напиши «кошка — это животное», «животное — это живое», а потом спроси «кошка — это живое?», и он выведет ответ по цепочке. Отрицание: «рыба — это не птица». Смысл слов: если пишешь слово, когда даёшь ему вещь, отправляешь куда-то или видишь, что он делает, слово связывается с этим делом. Например, напиши «еда», когда даёшь бургер. После пары раз он сам поймёт «еда» как «поесть».</p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="lbl">Лаборатория эволюции</div>
+      <div class="kpis">
+        <div><b id="k-gen">0</b><small>поколение</small></div>
+        <div><b id="k-best">—</b><small>рекорд поколения</small></div>
+        <div><b id="k-avg">—</b><small>в среднем</small></div>
+        <div><b id="k-champ">—</b><small>мозг в городе</small></div>
+      </div>
+      <canvas id="curve" width="700" height="170" style="width:100%;height:auto;margin-top:12px"></canvas>
+      <div class="legend"><span><i style="background:var(--sun)"></i>лучший клон</span><span><i style="background:var(--teal)"></i>среднее</span></div>
+      <p class="note" style="margin-top:10px">В каждом поколении 30 клонов проживают по две жизни по 90 дней. 8 лучших переходят дальше, остальные места занимают их дети с перемешанными и чуть мутировавшими генами. Лучший мозг пересаживается Рико в городе.</p>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div class="lbl">Рико в городе</div><div class="money" id="money">$60</div></div>
+      <div class="bars" id="stats"></div>
+      <div class="lbl" style="margin-top:12px">Путь к легенде</div>
+      <ol class="ms" id="ms"></ol>
+    </div>
+  </div>
+  <p class="note">Свой разум работает прямо на странице: распознаёт, о чём ты спрашиваешь, отвечает с учётом своего состояния и помнит твоё имя, подарки и то, что ты о себе рассказал. Слушается ли он советов, зависит от доверия к тебе: оно растёт от подарков и добрых слов и падает от грубости. Он проще, чем Claude, зато бесплатный. Переключатель «Claude» включает ответы Claude, это один запрос к твоим лимитам на каждое сообщение. Пока у Рико нет телефона, сообщения ждут на автоответчике до ближайшей синей будки.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const R=Math.random;
+const pick=a=>a[(R()*a.length)|0];
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const gauss=()=>{let u=0,v=0;while(!u)u=R();while(!v)v=R();return Math.sqrt(-2*Math.log(u))*Math.cos(6.2832*v)};
+const hhmm=h=>{h=((h%24)+24)%24;const H=Math.floor(h),M=Math.floor((h-H)*6)*10;return String(H).padStart(2,'0')+':'+String(M).padStart(2,'0')};
+function absH(e){return (e.day-1)*24+e.hour}
+const KEY='portsol-3d-v1',DAYS=90,POP=30,ELITE=8;
+
+/* ================= мир ================= */
+const LOC={
+  home:{n:'Дом',x:1,y:1,c:'#c77dff'},mom:{n:'Дом мамы',x:0,y:3,c:'#f7a1c4'},gym:{n:'Спортзал',x:3,y:0,c:'#ff5d73'},
+  diner:{n:'Бургерная',x:2,y:2,c:'#ffd166'},garage:{n:'Гараж друзей',x:1,y:4,c:'#8bd17c'},college:{n:'Колледж',x:3,y:2,c:'#7aa7ff'},
+  office:{n:'Деловой центр',x:4,y:1,c:'#b8c4d6'},casino:{n:'Казино',x:5,y:0,c:'#f72585'},port:{n:'Порт',x:5,y:3,c:'#2ec4b6'},
+  lot:{n:'Пустырь',x:0,y:5,c:'#a0806a'},hospital:{n:'Больница',x:3,y:4,c:'#ffffff'},beach:{n:'Пляж',x:4,y:5,c:'#f4d58d'},
+  shop:{n:'Мастерская',x:2,y:5,c:'#ff8a4c'},phoneshop:{n:'Салон связи',x:2,y:0,c:'#5ec8f2'},cars:{n:'Автосалон',x:4,y:3,c:'#dcdcdc'},
+  den:{n:'Логово «Кобр»',x:4,y:4,c:'#d62828'},
+};
+const BOOTHS=[[1,2],[3,3],[5,1],[0,4]];
+const ACT={
+  sleep:{loc:'home',h:8,n:'спать',line:'Пора домой, спать.'},
+  eat:{loc:'diner',h:1,cost:12,n:'поесть',line:'Возьму двойной бургер.'},
+  port:{loc:'port',h:6,n:'смена в порту',line:'Пойду таскать ящики в порт.'},
+  garage:{loc:'garage',h:5,n:'работа в гараже',line:'Помогу пацанам в гараже, заодно руку набью.'},
+  office:{loc:'office',h:8,n:'офис',line:'Попробую в офис.'},
+  gym:{loc:'gym',h:2,cost:10,n:'спортзал',line:'В зал, качаться.'},
+  study:{loc:'college',h:4,cost:25,n:'учёба',line:'Схожу на курсы, без бумажки никуда.'},
+  race:{loc:'lot',h:2,cost:50,n:'гонка',need:e=>e.car,line:'Сегодня гонка на пустыре.'},
+  casino:{loc:'casino',h:3,cost:10,n:'казино',line:'Может, повезёт в казино…'},
+  shady:{loc:'port',h:3,n:'тёмная доставка',line:'Знакомый звал на доставку. Быстрые деньги.'},
+  friends:{loc:'garage',h:3,n:'друзья',line:'Посижу с друзьями.'},
+  beach:{loc:'beach',h:2,n:'пляж',line:'На пляж, проветрить голову.'},
+  mom:{loc:'mom',h:2,n:'к маме',line:'Загляну к маме.'},
+  hospital:{loc:'hospital',h:3,cost:80,n:'больница',line:'Надо подлечиться.'},
+  buy_phone:{loc:'phoneshop',h:1,cost:150,n:'купить телефон',need:e=>!e.phone,line:'Куплю себе телефон.'},
+  buy_car:{loc:'cars',h:1,cost:800,n:'купить машину',need:e=>!e.car,line:'Пора за своей тачкой!'},
+  buy_shop:{loc:'shop',h:2,cost:3000,n:'купить мастерскую',need:e=>!e.shop,line:'Всё, покупаю мастерскую!'},
+  own_shop:{loc:'shop',h:7,n:'своя мастерская',need:e=>e.shop,line:'В свою мастерскую, работать на себя.'},
+  hire:{loc:'shop',h:1,n:'нанять друга',cost:500,need:e=>e.shop&&!e.hired,line:'Возьму друга на работу.'},
+  pay_gang:{loc:'den',h:1,cost:200,n:'откупиться от «Кобр»',need:e=>e.gang>=30,line:'Отнесу «Кобрам» конверт, пусть отстанут.'},
+  stand_up:{loc:'den',h:2,n:'разобраться с «Кобрами»',need:e=>e.gang>=30,line:'Хватит. Иду к «Кобрам» разговаривать.'},
+  mom_house:{loc:'mom',h:2,cost:5000,n:'купить маме дом',need:e=>!e.momHouse,line:'Сегодня большой день. Дом для мамы.'},
+};
+const AIDS=Object.keys(ACT),NA=AIDS.length;
+const MS=[['pay','Первая зарплата',5],['phone','Свой телефон',5],['car','Своя машина',10],['edu','Образование',10],['races','Король пустыря: 3 победы',15],['shop','Своя мастерская',25],['hire','Взял друга на работу',15],['gang','Поставил «Кобр» на место',20],['momHouse','Купил маме дом',40]];
+const newEnv=()=>({day:1,hour:8,money:60,health:100,energy:85,food:65,mood:60,rep:10,heat:0,str:1,drv:1,know:0,
+  phone:false,car:false,shop:false,hired:false,momHouse:false,wins:0,arrests:0,collapses:0,gang:0,gangHits:0,ms:{},loc:'home'});
+
+function passHours(e,h,sl){for(let i=0;i<h;i++){e.food-=sl?1.5:4;if(!sl)e.energy-=2;e.heat=Math.max(0,e.heat-1);if(e.food<=0){e.food=0;e.health-=5;e.mood-=2}}e.hour+=h}
+function fix(e){e.health=clamp(e.health,0,100);e.energy=clamp(e.energy,0,100);e.food=clamp(e.food,0,100);e.mood=clamp(e.mood,0,100);e.rep=clamp(e.rep,0,100);e.heat=clamp(e.heat,0,100);e.money=Math.round(e.money)}
+function mile(e,k,ev){if(e.ms[k])return;e.ms[k]=e.day;if(ev){const m=MS.find(x=>x[0]===k);ev.push({t:'Цель выполнена: '+m[1]+'!',c:'big'})}}
+function resolve(e,id,ev){
+  const say=(t,c)=>ev&&ev.push({t,c});
+  switch(id){
+    case'sleep':{const h=Math.max(6,Math.min(10,32-e.hour));passHours(e,h,true);e.energy+=70;e.health+=5;e.mood+=3;say('Выспался.');break}
+    case'eat':e.money-=12;e.food+=50;e.health+=2;passHours(e,1);say('Съел бургер.');break;
+    case'port':{passHours(e,6);const p=60+Math.round(e.str*8+R()*15);e.money+=p;e.energy-=30;e.str+=.15;mile(e,'pay',ev);
+      if(R()<.12-e.str*.015){e.health-=25;say(`Смена в порту +$${p}, но сорвал спину.`,'bad')}else say(`Смена в порту: +$${p}.`,'good');break}
+    case'garage':{passHours(e,5);const p=30+Math.round(e.drv*12);e.money+=p;e.drv+=.3;e.energy-=20;e.mood+=4;mile(e,'pay',ev);say(`Гараж: +$${p}, вождение растёт.`,'good');break}
+    case'office':if(e.know<3){passHours(e,1);e.mood-=8;say('В офис не взяли без образования.','bad');break}
+      passHours(e,8);e.money+=140;e.energy-=22;e.mood-=3;e.rep+=1;mile(e,'pay',ev);say('День в офисе: +$140.','good');break;
+    case'gym':e.money-=10;passHours(e,2);e.str+=.35;e.energy-=18;e.health+=4;e.mood+=5;say('Потренировался.');break;
+    case'study':e.money-=25;passHours(e,4);e.know+=.5;e.energy-=18;e.mood-=2;say(`Курсы: знания ${e.know.toFixed(1)}/3.`);if(e.know>=3)mile(e,'edu',ev);break;
+    case'race':{passHours(e,2);const p=.3+e.drv*.08+(e.luck&&absH(e)<e.luck?.2:0);
+      if(R()<.08){e.money-=50;e.heat+=20;const f=Math.min(100,Math.max(0,e.money));e.money-=f;say(`Гонку накрыла полиция: штраф $${f}.`,'bad');break}
+      if(R()<.1){e.money-=50;e.health-=35;e.mood-=10;say('Разбился на повороте!','bad');break}
+      if(R()<p){e.money+=120;e.rep+=6;e.drv+=.25;e.mood+=10;e.wins++;say(`Победа в гонке! +$120 (побед: ${e.wins}).`,'good');if(e.wins>=3)mile(e,'races',ev)}
+      else{e.money-=50;e.drv+=.15;e.mood-=6;say('Проиграл гонку: −$50.','bad')}break}
+    case'casino':{passHours(e,3);const b=Math.min(100,Math.max(0,e.money));if(R()<.38){e.money+=b;e.mood+=12;say(`Казино: +$${b}!`,'good')}else{e.money-=b;e.mood-=12;say(`Казино: −$${b}.`,'bad')}break}
+    case'shady':{passHours(e,3);if(R()<.18+e.heat/180){const l=Math.max(0,Math.min(e.money,300));e.money-=l;e.heat=0;e.mood-=30;e.rep-=4;e.arrests++;passHours(e,10,true);e.energy-=20;say(`Арестован! Конфисковали $${l}, ночь в участке.`,'bad')}
+      else{e.money+=220;e.heat+=30;e.rep+=3;say('Тёмная доставка: +$220. Копы косятся.','big')}break}
+    case'friends':passHours(e,3);e.mood+=18;e.rep+=3;if(R()<.12){e.health-=15;e.rep+=4;say('Тусовка закончилась дракой.','bad')}else say('Посидели с друзьями.','good');break;
+    case'beach':passHours(e,2);e.mood+=14;e.energy+=6;say('Закат на пляже.');break;
+    case'mom':passHours(e,2);e.food+=45;if(e.heat>30){e.mood-=5;say('Мама переживает из-за его дел.','bad')}else{e.mood+=18;say('Мама накормила.','good')}break;
+    case'hospital':passHours(e,3);e.money-=80;e.health+=50;say('Подлечился (−$80).');break;
+    case'buy_phone':passHours(e,1);e.money-=150;e.phone=true;mile(e,'phone',ev);break;
+    case'buy_car':passHours(e,1);e.money-=800;e.car=true;e.rep+=5;mile(e,'car',ev);break;
+    case'buy_shop':passHours(e,2);e.money-=3000;e.shop=true;e.mood+=40;e.rep+=20;mile(e,'shop',ev);break;
+    case'own_shop':{passHours(e,7);const p=150+Math.round(e.drv*20+e.rep*2);e.money+=p;e.energy-=18;e.mood+=6;say(`Своя мастерская: +$${p}.`,'good');break}
+    case'hire':passHours(e,1);e.money-=500;e.hired=true;e.rep+=8;mile(e,'hire',ev);break;
+    case'pay_gang':passHours(e,1);e.money-=200;e.gang=Math.max(0,e.gang-50);e.mood-=5;say('Отдал «Кобрам» $200. Пока отстанут.');break;
+    case'stand_up':{passHours(e,2);const p=.15+e.str*.08+e.rep/250+(e.hired?.1:0)+(e.bat?.2:0);
+      if(R()<p){e.gang=0;e.rep+=15;e.mood+=20;mile(e,'gang',ev);say('Рико поставил «Кобр» на место. Район гудит.','big')}
+      else{e.health-=40;e.mood-=20;e.gang=Math.min(100,e.gang+10);say('Разговор с «Кобрами» не задался: избит.','bad')}break}
+    case'mom_house':passHours(e,2);e.money-=5000;e.momHouse=true;e.mood=100;e.rep+=30;mile(e,'momHouse',ev);say('Мама плакала от счастья.','big');break;
+  }
+  if(e.health<=0){e.health=30;e.money-=300;e.mood-=20;e.collapses++;e.loc='hospital';say('Потерял сознание, очнулся в больнице. Счёт $300.','bad')}
+  if(e.energy<=0){e.energy=10;e.mood-=10;if(R()<.4){const l=Math.round(Math.max(0,e.money)*.5);e.money-=l;say(`Уснул на лавке, обчистили: −$${l}.`,'bad')}else say('Уснул без сил на лавке.','bad')}
+  fix(e);
+}
+function step(e,a,ev){
+  const id=AIDS[a];
+  if(e.loc!==ACT[id].loc){passHours(e,.5);e.loc=ACT[id].loc}
+  resolve(e,id,ev);
+  if(id==='sleep'||e.hour>=26){
+    if(id!=='sleep'){resolve(e,'sleep',null);e.loc='home';ev&&ev.push({t:'Без сил добрёл до дома и вырубился.',c:'bad'})}
+    gangDay(e,ev);
+    e.day++;e.hour=8;let inc=(e.shop?60:0)+(e.hired?80:0);if(inc){e.money+=inc;ev&&ev.push({t:`Мастерская принесла за ночь $${inc}.`,c:'good'})}
+  }
+}
+function gangDay(e,ev){
+  e.gang=clamp(e.gang+(4+(e.shop?8:0)+(e.car?3:0)+e.rep/25)*(e.ms.gang?.5:1),0,100);
+  if(e.gang>=60&&R()<(e.gang-45)/100){const k=R();e.gangHits++;
+    if(e.shop&&k<.4){e.money-=300;ev&&ev.push({t:'«Кобры» разгромили мастерскую: −$300 на ремонт.',c:'bad'})}
+    else if(e.car&&k<.7){e.car=false;ev&&ev.push({t:'«Кобры» угнали машину!',c:'bad'})}
+    else{e.health=Math.max(5,e.health-30);e.mood=Math.max(0,e.mood-15);ev&&ev.push({t:'«Кобры» подкараулили у дома и избили.',c:'bad'})}}
+}
+function fitness(e){let s=0;for(const[k,,p]of MS)if(e.ms[k])s+=p;return s+clamp(e.money/250,-20,20)-e.arrests*8-e.collapses*3-e.gangHits*3}
+
+/* ================= мозг ================= */
+const NF=16;
+const FR=['','Живот урчит','Глаза слипаются','Всё болит','На душе тоскливо','В карманах пусто','Деньги есть, надо пускать в дело','Уже ночь','Копы присматриваются','Диплом есть, пора им пользоваться','Мастерская ждёт','Тачка под окном','Телефон в кармане','День к концу','На следующую цель уже хватает','«Кобры» совсем обнаглели'];
+const FB=new Float32Array(NF);
+function feats(e){FB[0]=1;FB[1]=1-e.food/100;FB[2]=1-e.energy/100;FB[3]=1-e.health/100;FB[4]=1-e.mood/100;FB[5]=e.money<50?1:0;FB[6]=Math.min(2,Math.max(0,e.money)/3000);
+  const h=e.hour%24;FB[7]=(h>=20||h<7)?1:0;FB[8]=e.heat/100;FB[9]=e.know>=3?1:0;FB[10]=e.shop?1:0;FB[11]=e.car?1:0;FB[12]=e.phone?1:0;FB[13]=clamp((e.hour-8)/16,0,1.2);
+  const nc=!e.phone?150:!e.car?800:!e.shop?3000:!e.hired?500:!e.momHouse?5000:1e9;FB[14]=e.money>=nc?1:0;FB[15]=e.gang/100}
+function allowed(e,a){const A=ACT[AIDS[a]];return !(A.cost&&e.money<A.cost)&&!(A.need&&!A.need(e))}
+function decide(e,g,bias,noise){
+  feats(e);let best=0,bv=-1e9;
+  for(let a=0;a<NA;a++){if(!allowed(e,a))continue;let u=0;const o=a*NF;for(let f=0;f<NF;f++)u+=g[o+f]*FB[f];
+    if(bias)u+=bias[a]||0;if(noise)u+=(R()-.5)*noise;if(u>bv){bv=u;best=a}}
+  return best;
+}
+const randG=()=>{const g=new Float32Array(NA*NF);for(let i=0;i<g.length;i++)g[i]=gauss()*.6;return g};
+function live(g){const e=newEnv();let n=0;while(e.day<=DAYS&&n++<4000)step(e,decide(e,g,null,0),null);return e}
+
+/* ================= эволюция ================= */
+let pop=[],gen=0,hist=[],champ=null,champFit=-1e9,evoOn=false;
+function initPop(){pop=Array.from({length:POP},randG);gen=0;hist=[];champ=null;champFit=-1e9}
+function evolveOnce(){
+  const sc=pop.map(g=>({g,f:(fitness(live(g))+fitness(live(g)))/2})).sort((a,b)=>b.f-a.f);
+  hist.push({b:sc[0].f,a:sc.reduce((s,x)=>s+x.f,0)/sc.length});if(hist.length>3000)hist.shift();
+  gen++;
+  // претендент на место в городе: перепроверка на 5 жизнях
+  let tf=0;for(let i=0;i<5;i++)tf+=fitness(live(sc[0].g));tf/=5;
+  if(tf>champFit){champFit=tf;champ=sc[0].g.slice();onNewChamp()}
+  const next=sc.slice(0,ELITE).map(x=>x.g);
+  const pick=()=>{let b=null;for(let i=0;i<3;i++){const c=sc[(R()*sc.length)|0];if(!b||c.f>b.f)b=c}return b.g};
+  while(next.length<POP){const p1=pick(),p2=pick(),c=new Float32Array(p1.length);
+    for(let i=0;i<c.length;i++){c[i]=R()<.5?p1[i]:p2[i];if(R()<.08)c[i]+=gauss()*.35}next.push(c)}
+  pop=next;
+}
+
+
+
+/* ================= город: состояние ================= */
+let C=newEnv(),cBias=new Float32Array(NA),cBiasUntil=0,speed=3,chat=[],inbox=[],asking=false,lastThought='';
+let anim=null,actUntil=0,cur=null,order=null,showFrom=absH(C),showTo=absH(C),showT0=0,showHour=8,lastEvo=0;
+let mindMode='ai',sample=null;
+const MIND={trust:40,name:'',facts:[],gifts:[],giftDay:{}};
+let notifiedFit=-1e9;
+function onNewChamp(){if(gen>1&&champFit-notifiedFit>=15){notifiedFit=champFit;sys(`Мозг Рико обновился: поколение ${gen}, оценка ${Math.round(champFit)}.`)}}
+
+function cityTick(now){
+  if(!champ)return;
+  if(anim)return;
+  if(now<actUntil&&!order)return;
+  if(cBiasUntil&&absH(C)>=cBiasUntil){cBias.fill(0);cBiasUntil=0}
+  let a,byUser=false;
+  if(order){a=order;order=null;byUser=true;if(!allowed(C,a)){push({who:'rico',text:'Не выходит: на это сейчас нет денег или нет условий.'});return}}
+  else a=decide(C,champ,cBias,.15);
+  const id=AIDS[a];
+  if(byUser)push({who:'th',text:'Голос попросил. '+ACT[id].line});else thought(a);
+  const from=C.loc,to=ACT[id].loc;
+  const go=()=>{
+    const ev=[],h0=absH(C);step(C,a,ev);cur=id;
+    for(const x of ev){sys2(x.t,x.c);callCheck(x.t)}
+    if(mindMode==='ai'&&AI.ready&&C.day!==AI.lastReflectDay&&C.hour<12)aiReflect();
+    npcTalk();
+    const dh=Math.max(.5,absH(C)-h0);actUntil=performance.now()+dh*650/speed;showFrom=h0;showTo=absH(C);showT0=performance.now();
+    if(C.phone&&inbox.length)deliver('phone');
+    save();
+  };
+  if(from!==to){const onPath=boothOnPath(from,to);
+    anim={from,to,t0:now,dur:(Math.abs(LOC[from].x-LOC[to].x)+Math.abs(LOC[from].y-LOC[to].y))*450/Math.sqrt(speed),res:()=>{if(inbox.length&&onPath&&!C.phone){sys('Рико заметил телефонную будку и прослушал автоответчик.');deliver('booth')}go()}};
+  }else go();
+}
+function boothOnPath(f,t){const a=LOC[f],b=LOC[t];const btw=(v,p,q)=>v>=Math.min(p,q)&&v<=Math.max(p,q);
+  return BOOTHS.some(([x,y])=>(y===a.y&&btw(x,a.x,b.x))||(x===b.x&&btw(y,a.y,b.y))||(Math.abs(x-b.x)+Math.abs(y-b.y)<=1))}
+function thought(a){
+  const o=a*NF;let bf=0,bv=0;for(let f=1;f<NF;f++){const v=champ[o+f]*FB[f];if(v>bv){bv=v;bf=f}}
+  let r=bf?FR[bf]+'. ':'';if(cBias[a]>bv&&cBias[a]>.5)r='Голос в трубке советовал… ';
+  const t=r+ACT[AIDS[a]].line;if(t===lastThought)return;lastThought=t;push({who:'th',text:t});
+}
+
+/* ================= жители ================= */
+const NPCS=[{n:'Лео',c:0x8bd17c,fav:['garage','diner','lot','beach','garage']},{n:'Роза',c:0xffd166,fav:['diner','mom','beach','diner']},
+  {n:'Мигель',c:0xe8e8e8,fav:['lot','cars','casino','lot']},{n:'Офицер Грант',c:0x5ec8f2,fav:['port','lot','office','casino','hospital','den']},
+  {n:'Кобра',c:0xd62828,fav:['den'],gang:1},{n:'Кобра',c:0xd62828,fav:['den'],gang:1}].map(o=>({...o,loc:o.fav[0],anim:null,wait:0}));
+const TALK={'Лео':['Брат, заходи в гараж, работы полно.','Слышал, «Кобры» опять наглеют.','Если что, я за тебя впишусь.'],'Роза':['Ешь давай, худой совсем!','Мама твоя тобой гордится.','В порту ночью неспокойно, сынок.'],
+  'Мигель':['На пустыре тебе не светит, Рико.','Новая тачка? Посмотрим на трассе.'],'Офицер Грант':['Я за тобой приглядываю, Рико.','Держись подальше от тёмных дел.'],'Кобра':['Район наш, понял?','Плати, пока по-хорошему просим.']};
+function npcTick(now){for(const o of NPCS){
+  if(o.anim){if(now-o.anim.t0>=o.anim.dur){o.loc=o.anim.to;o.anim=null;o.wait=now+(2000+R()*6000)/Math.sqrt(speed)}continue}
+  if(now<o.wait)continue;
+  let fav=o.fav;if(o.gang&&C.gang>=60)fav=['den','home','shop','garage','diner'];else if(o.gang&&C.gang>=30)fav=['den','den','port','casino'];
+  const t=fav[(R()*fav.length)|0];if(t===o.loc){o.wait=now+1500;continue}
+  const a=LOC[o.loc],b=LOC[t];o.anim={from:o.loc,to:t,t0:now,dur:(Math.abs(a.x-b.x)+Math.abs(a.y-b.y))*800/Math.sqrt(speed)}}}
+function npcTalk(){const here=NPCS.filter(o=>!o.anim&&o.loc===C.loc);if(!here.length||R()>.35)return;
+  const o=here[(R()*here.length)|0],l=TALK[o.n];push({who:'th',text:`${o.gang?'Кобра':o.n}: «${pick(l)}»`})}
+
+/* ================= Рико пишет сам ================= */
+let lastCallDay=0;
+const CALLS={ms:t=>{const g=t.replace('Цель выполнена: ','').replace(/!$/,'');return[`Слышь! ${g}. Сам не верю.`,`Новости: ${g}. Кажется, жизнь налаживается.`,`${g}! Думал, тебе первому сказать.`]},
+  arrest:()=>['Меня приняли на доставке. Только маме не говори.','Ночь в участке. Знаю, ты предупреждал… или нет.'],
+  gang:()=>['«Кобры» опять. Что мне с ними делать?','Эти змеи совсем страх потеряли. Я на пределе.','Опять «Кобры». Может, пора с ними разобраться?'],
+  win:()=>['Я разобрался с «Кобрами». Сам. Район теперь по-другому смотрит.'],hospital:()=>['Я в больнице. Жив, но счёт конский.']};
+function callCheck(t){let k=null;
+  if(/^Цель выполнена/.test(t))k='ms';else if(/Арестован/.test(t))k='arrest';else if(/«Кобры» (разгромили|угнали|подкараулили)/.test(t))k='gang';
+  else if(/поставил «Кобр»/.test(t))k='win';else if(/очнулся в больнице/.test(t))k='hospital';
+  if(!k||!C.phone)return;if(k!=='ms'&&k!=='win'&&lastCallDay===C.day)return;lastCallDay=C.day;
+  push({who:'rico',text:pick(CALLS[k](t)),call:true});ring()}
+function ring(){const ph=document.querySelector('.phone');ph.classList.remove('ring');void ph.offsetWidth;ph.classList.add('ring')}
+
+/* ================= свой разум ================= */
+const JOKES=['Почему «Кобры» не играют в покер? Все карты на руках, а мозгов нет.','Мигель говорит, что быстрее меня. Да, когда я пешком.','Мама спросила, чем я занимаюсь. Сказал: инвестирую в бургеры.','В казино есть одна гарантия: уйдёшь легче, чем пришёл.'];
+const GOALCOST={phone:150,car:800,shop:3000,hire:500,momHouse:5000};
+const KW=[[/ешь|поешь|еда|голод|бургер|перекус/,'eat',2],[/спи|спать|поспи|выспись|отдохни/,'sleep',2],[/порт|грузчик/,'port',1.5],[/гараж|чини/,'garage',1.5],[/учи|курс|колледж|образован/,'study',2],[/мам/,'mom',2],[/казино/,'casino',-2],[/доставк|криминал|темн/,'shady',-2.5],[/гонк|пустыр/,'race',1.5],[/телефон/,'buy_phone',3],[/машин|тачк/,'buy_car',2.5],[/мастерск/,'buy_shop',2],[/друз|лео/,'friends',1.5],[/пляж/,'beach',1.5],[/зал|кач|трениров/,'gym',1.5],[/больниц|лечи/,'hospital',2],[/кобр|банд|разберись|постой за себя/,'stand_up',2.5],[/откуп|заплати/,'pay_gang',2.5],[/офис/,'office',2]];
+function nextGoal(e){for(const[k,n]of MS)if(!e.ms[k])return{k,n};return null}
+const nm=()=>MIND.name?', '+MIND.name:'';
+function stateBrief(){const p=[];if(C.food<30)p.push('голодный как волк');if(C.energy<25)p.push('еле стою на ногах');if(C.health<40)p.push('всё болит');if(C.gang>=60)p.push('«Кобры» дышат в затылок');if(!p.length)p.push(C.mood>70?'всё отлично':'нормально');return p.join(', ')}
+function doingText(){return anim?`иду: ${LOC[anim.to].n}`:cur?`${ACT[cur].n} (${LOC[C.loc].n})`:'стою, думаю'}
+function trust(d){MIND.trust=clamp(MIND.trust+d,0,100)}
+function mindReply(text){
+  const t=text.toLowerCase().replace(/ё/g,'е').trim();let m;
+  if(m=t.match(/меня зовут\s+([a-zа-я-]+)/)){MIND.name=cap(m[1]);trust(3);return{r:pick([`Запомнил, ${MIND.name}.`,`${MIND.name}, значит. Будем знакомы.`])}}
+  if(/(дурак|идиот|лох|туп|неудачник|придурок|нищеброд|урод)/.test(t)){trust(-10);return{r:pick(['Слышь, полегче.','Ещё раз так скажешь, и кину номер в блок.','Ты кто такой, чтобы так говорить?'])}}
+  const neg=/(не (ходи|иди|надо|трать|играй|связывайся|лезь|покупай)|хватит|брось|завязывай|забудь про)/.test(t);
+  const adv=[];for(const[re,a,w]of KW)if(re.test(t))adv.push({a,w:neg?-Math.abs(w):w});
+  if(adv.length&&/(иди|сходи|пойди|давай|купи|поешь|поспи|займись|попробуй|разберись|заплати|отдохни|учись|работай|не |хватит|брось|надо|стоит|советую|можешь|возьми)/.test(t))return adviceReply(adv);
+  const gm=t.match(/^(привет|здарова|здаров|здравствуй|хай|йо|салам|добрый (день|вечер)|доброе утро)[\s,!.]*/);
+  if(gm&&t.length-gm[0].length>3){const rest=mindReply(t.slice(gm[0].length));return{...rest,r:`Йо${nm()}! `+rest.r}}
+  if(/(привет|здаров|здравств|хай|^йо|салам|добр(ый|ое|ой))/.test(t))return{r:pick(C.mood<30?[`Ну привет${nm()}.`,'Чего тебе?']:[`Йо${nm()}!`,`Здарова${nm()}. Как сам?`,'О, голос в трубке. Привет.'])};
+  if(/как (ты|дела|жизнь|сам|оно)/.test(t))return{r:`${cap(stateBrief())}. ${C.money>=0?'В кармане $'+C.money:'В долгах на $'+(-C.money)}.`};
+  if(/(где ты|ты где|куда идешь)/.test(t))return{r:`Сейчас: ${doingText()}.`};
+  if(/(что делаешь|чем занят)/.test(t))return{r:`${cap(doingText())}. ${pick(['Обычный день.','Жизнь кипит.','Сам видишь.'])}`};
+  if(/(деньг|бабк|сколько у тебя|зарабат)/.test(t)){const g=nextGoal(C),c=g&&GOALCOST[g.k];return{r:`$${C.money}. `+(c?(C.money>=c?`На цель «${g.n}» уже хватает.`:`До цели «${g.n}» не хватает $${c-C.money}.`):'Хватает, жаловаться грех.')}}
+  if(/(план|цел|мечт|чего хочешь|что дальше)/.test(t)){const g=nextGoal(C);return{r:g?`Следующая цель: ${g.n}. А в конце хочу купить маме дом.`:'Всё, что хотел, сделал. Теперь просто живу.'}}
+  if(/мам/.test(t))return{r:C.ms.momHouse?'Мама в новом доме. Как захожу, плачет от счастья.':C.heat>30?'Мама переживает, знает, что я влез куда не надо.':pick(['Мама одна меня тянула. Хочу купить ей дом.','Мама — это святое.'])};
+  if(/(кобр|банд)/.test(t))return{r:C.ms.gang?'«Кобры» теперь обходят меня стороной.':C.gang>=60?'Совсем обнаглели. Либо платить, либо разбираться.':C.gang>=30?'Начинают косо смотреть. Посмотрим.':'Пока не трогают.'};
+  if(/(кто ты|о себе|расскажи про себя)/.test(t))return{r:'Рико, 24 года. Вернулся домой в Порт-Сол с пустыми карманами. Хочу встать на ноги.'};
+  if(/(кто я|как меня зовут|ты меня знаешь)/.test(t))return{r:MIND.name?`Ты ${MIND.name}. Голос в трубке.`:'Без понятия. Голос в трубке. Может, представишься?'};
+  if(/(помнишь|что ты знаешь обо мне|что запомнил)/.test(t)){const f=[];if(MIND.name)f.push(`тебя зовут ${MIND.name}`);for(const x of MIND.facts.slice(-3))f.push(x);if(MIND.gifts.length)f.push(`ты подкинул мне: ${[...new Set(MIND.gifts)].slice(-4).join(', ')}`);return{r:f.length?'Помню, что '+f.join('; ')+'.':'Пока почти ничего. Ты о себе не рассказываешь.'}}
+  if(/(доверя|веришь мне)/.test(t))return{r:MIND.trust>70?'Да. Ты меня ни разу не подвёл.':MIND.trust>40?'Более-менее. Посмотрим.':'Пока нет. Ты для меня голос из ниоткуда.'};
+  if(m=t.match(/^я\s+(.{3,60})/)){MIND.facts.push('ты '+m[1].replace(/[.!?]+$/,''));if(MIND.facts.length>8)MIND.facts.shift();trust(1);return{r:pick(['Понял. Запомню.','Серьёзно? Ладно, запомню.','Интересно. Потом расскажешь подробнее.'])}}
+  if(/(спасибо|благодар|спс)/.test(t))return{r:pick(['Да не за что.','Тебе спасибо.'])};
+  if(/(молодец|красав|горжусь|крут|умница|лучший)/.test(t)){trust(5);return{r:pick(['Спасибо. Правда, приятно.','Ха, стараюсь!','Скажи это «Кобрам».'])}}
+  if(/(шутк|анекдот|рассмеши)/.test(t))return{r:pick(JOKES)};
+  if(/(груст|настроени|чувству|как себя)/.test(t))return{r:C.mood>70?'Настроение огонь.':C.mood>40?'Терпимо.':'Паршиво, если честно.'};
+  if(/\?$/.test(t))return{r:pick(['Хм. Не знаю.','Сложный вопрос. Спроси что попроще.','Без понятия, честно.'])};
+  return{r:pick(['Ага.','Понял тебя.','Интересно…','Хм.',`Слушай, я сейчас занят (${doingText()}), потом поговорим.`])};
+}
+function adviceReply(adv){
+  const top=adv[0],A=ACT[top.a],ai=AIDS.indexOf(top.a);
+  let fit=0;if(top.a==='eat'&&C.food<50)fit=.3;if(top.a==='sleep'&&C.energy<40)fit=.3;if(top.a==='hospital'&&C.health<50)fit=.3;if(top.w<0)fit+=.15;
+  if(top.w>0&&!allowed(C,ai))return{r:A.cost&&C.money<A.cost?`Хотел бы, но на это нужно $${A.cost}, а у меня $${C.money}.`:'Сейчас это не вариант.'};
+  if(R()<clamp(MIND.trust/100+.15+fit,0,.97)){trust(1);return{r:top.w>0?pick([`Ладно, уговорил. ${A.line}`,`Дельная мысль. ${A.line}`]):pick([`Ладно, «${A.n}» — не сегодня.`,'Понял, не буду.']),bias:adv,hours:8}}
+  return{r:pick(MIND.trust<30?['С чего мне тебя слушать?','Не указывай мне.']:['Не, сейчас не до этого.','Подумаю, но вряд ли.'])};
+}
+
+/* ================= речь и логика: учится с нуля ================= */
+const ABC='абвгдеёжзийклмнопрстуфхцчшщъыьэюя';
+const STOP=new Set('и в во на не а но да ты я он она мы вы они это то что как же ли бы с со к ко у о об от до по за из для так вот уже еще ещё ну мне меня тебя тебе его ее её их там тут где когда очень все всё был была было быть есть'.split(' '));
+const ITEMCON={burger:'eat',energy:'sleep',aid:'hospital',cash:'port',book:'study',charm:'race',bat:'stand_up',phone:'buy_phone',car:'buy_car'};
+const LEX={letters:{},words:{},bi:{},assoc:{},isa:{},nota:{},disp:{},heard:0,recent:[]};
+let lexDirty=true;
+const tokz=t=>(t.toLowerCase().replace(/ё/g,'е').match(/[а-яa-z]+/g)||[]);
+const stem=w=>w.length>4?w.replace(/(ами|ями|ов|ев|ей|ам|ям|ах|ях|ом|ем|ой|ий|ый|ая|яя|ое|ее|ые|ие|ую|юю|а|я|ы|и|у|ю|е|о)$/,''):w;
+const knownW=w=>(LEX.words[w]||0)>=2;
+const vocab=()=>Object.values(LEX.words).filter(c=>c>=2).length;
+const lettersKnown=()=>[...ABC].filter(c=>(LEX.letters[c]||0)>=2).length;
+function lexLevel(){const v=vocab(),l=lettersKnown();
+  if(l<10)return{n:0,t:'Учит буквы'};if(v<6)return{n:1,t:'Первые слова'};if(v<25)return{n:2,t:'Говорит словами'};if(v<70)return{n:3,t:'Простые фразы'};return{n:4,t:'Болтает'}}
+function lexNote(kind,key){LEX.recent.push({k:kind,v:key,t:Date.now()});if(LEX.recent.length>6)LEX.recent.shift()}
+function learnText(text){
+  LEX.heard++;lexDirty=true;
+  for(const ch of text.toLowerCase())if(ABC.includes(ch))LEX.letters[ch]=(LEX.letters[ch]||0)+1;
+  const ws=tokz(text);for(const w of ws)LEX.words[w]=(LEX.words[w]||0)+1;
+  const seq=['^',...ws,'$'];for(let i=0;i<seq.length-1;i++){const a=seq[i],b=seq[i+1];(LEX.bi[a]||(LEX.bi[a]={}))[b]=(LEX.bi[a][b]||0)+1}
+  // заземление: слова ↔ то, что происходит рядом
+  const ctx=new Set();const now=Date.now();for(const r of LEX.recent)if(now-r.t<20000)ctx.add(r.v);
+  for(const w of ws){if(STOP.has(w)||w.length<3)continue;const s=stem(w);LEX.disp[s]=w;for(const c of ctx){const A=LEX.assoc[s]||(LEX.assoc[s]={});A[c]=(A[c]||0)+1}}
+}
+function wPick(obj){let s=0;for(const k in obj)s+=obj[k];let r=R()*s;for(const k in obj){r-=obj[k];if(r<=0)return k}return null}
+function babble(text){const ws=tokz(text).sort((a,b)=>b.length-a.length);const w=ws[0]||'';
+  const out=[...w].map(c=>(LEX.letters[c]||0)>=2?c:'·').join('');return out.replace(/^·+$/,'…')||'…'}
+function genPhrase(seeds,max){
+  let w=seeds.find(s=>LEX.bi[s]&&knownW(s));const out=[];if(w)out.push(w);else w='^';
+  for(let i=0;i<max;i++){const nx=LEX.bi[w];if(!nx)break;const n=wPick(nx);if(!n||n==='$')break;if(!knownW(n)&&R()<.7)break;out.push(n);w=n}
+  return out.join(' ')}
+function isaPath(a,b){const q=[[a]],seen=new Set([a]);while(q.length){const p=q.shift(),x=p[p.length-1];if(x===b)return p;for(const y of LEX.isa[x]||[])if(!seen.has(y)){seen.add(y);q.push([...p,y])}}return null}
+function denies(a,b){const q=[a],seen=new Set([a]);while(q.length){const x=q.shift();if((LEX.nota[x]||[]).includes(b))return x;for(const y of LEX.isa[x]||[])if(!seen.has(y)){seen.add(y);q.push(y)}}return null}
+const D=s=>LEX.disp[s]||s;
+function understood(ws){let best=null,bv=1;for(const w of ws){const A=LEX.assoc[stem(w)];if(!A)continue;for(const k in A)if(ACT[k]&&A[k]>bv){bv=A[k];best=k}}return best}
+function learnReply(text){
+  const lv=lexLevel(),t=text.toLowerCase().replace(/ё/g,'е').trim().replace(/[!.]+$/,'');let m;
+  if(lv.n===0)return{r:babble(text)};
+  // логика: утверждение «x — это (не) y»
+  if((m=t.match(/^([а-я]+)\s*(?:-|—)?\s*(?:это|является)\s+(не\s+)?([а-я]+)$/))||(m=t.match(/^([а-я]+)\s*[-—]\s*(не\s+)?([а-я]+)$/))){
+    const a=stem(m[1]),b=stem(m[3]);LEX.disp[a]=m[1];LEX.disp[b]=m[3];
+    if(m[2]){(LEX.nota[a]||(LEX.nota[a]=[])).includes(b)||LEX.nota[a].push(b)}else{(LEX.isa[a]||(LEX.isa[a]=[])).includes(b)||LEX.isa[a].push(b)}
+    lexDirty=true;return{r:lv.n<2?`${m[1]}… ${m[3]}!`:`Понял: ${m[1]} — ${m[2]?'не ':''}${m[3]}.`}}
+  // логика: вопрос «x — это y?»
+  if((m=t.match(/^([а-я]+)\s*(?:-|—)?\s*(?:это|является)?\s*([а-я]+)\s*\?$/))&&!/^(что|кто|где|как|почему|зачем)$/.test(m[1])){
+    const a=stem(m[1]),b=stem(m[2]);const no=denies(a,b);if(no)return{r:lv.n<3?'нет!':`Нет. ${D(no)} — не ${m[2]}.`};
+    const p=isaPath(a,b);if(p&&p.length>1)return{r:lv.n<3?`да! ${p.map(D).join(' → ')}`:`Да! Потому что ${p.map(D).join(' → ')}.`};
+    return{r:lv.n<3?'не знаю…':`Не знаю. Объясни мне: ${m[1]} — это что?`}}
+  if(m=t.match(/(?:что такое|кто такой|кто такая|что это)\s+([а-я]+)/)){const a=stem(m[1]),ups=LEX.isa[a]||[];
+    return{r:ups.length?`${m[1]} — это ${ups.map(D).join(', ')}.`:(lv.n<3?'не знаю…':`Не знаю, что такое «${m[1]}». Расскажи?`)}}
+  if(/что ты знаешь|чему научился/.test(t))return{r:`Знаю ${lettersKnown()} букв, ${vocab()} слов и ${Object.values(LEX.isa).reduce((s,x)=>s+x.length,0)} фактов.`};
+  const ws=tokz(text),act=understood(ws);
+  let r;
+  if(lv.n===1){const k=ws.filter(knownW);r=k.length?k.slice(0,2).join('… ')+'?':babble(text)}
+  else if(lv.n===2){const k=ws.filter(w=>knownW(w)&&!STOP.has(w));r=(k.length?k.slice(-2).join(' '):genPhrase(ws,2))||babble(text)}
+  else{r=genPhrase(ws,lv.n===3?5:9)||ws.filter(knownW).slice(0,3).join(' ')||babble(text)}
+  const out={r:r||'…'};
+  if(act){out.bias=[{a:act,w:2}];out.hours=6;out.r+=lv.n<3?` (${ACT[act].n}!)`:` Понял — ${ACT[act].n}.`}
+  return out;
+}
+function renderLex(){
+  if(!lexDirty)return;lexDirty=false;const lv=lexLevel();
+  $('lx-level').textContent=lv.t;$('lx-letters').textContent=lettersKnown()+'/33';$('lx-words').textContent=vocab();
+  $('lx-facts').textContent=Object.values(LEX.isa).reduce((s,x)=>s+x.length,0)+Object.values(LEX.nota).reduce((s,x)=>s+x.length,0);
+  const g=$('abc');g.innerHTML='';for(const c of ABC){const s=document.createElement('span');const k=LEX.letters[c]||0;s.textContent=c;s.style.opacity=(.18+Math.min(1,k/2)*.82).toFixed(2);if(k>=2)s.className='ok';g.append(s)}
+  const tw=Object.entries(LEX.words).filter(([,c])=>c>=2).sort((a,b)=>b[1]-a[1]).slice(0,24);
+  $('lx-top').textContent=tw.length?tw.map(([w])=>w).join(' · '):'пока ни одного: слово запоминается, когда встретится дважды';
+  const fl=[];for(const a in LEX.isa)for(const b of LEX.isa[a])fl.push(`${D(a)} → ${D(b)}`);for(const a in LEX.nota)for(const b of LEX.nota[a])fl.push(`${D(a)} ✕ ${D(b)}`);
+  $('lx-logic').textContent=fl.length?fl.slice(-12).join('   '):'пока пусто';
+  const as=[];for(const s in LEX.assoc){for(const k in LEX.assoc[s])if(ACT[k]&&LEX.assoc[s][k]>=2)as.push([D(s),ACT[k].n,LEX.assoc[s][k]])}
+  as.sort((a,b)=>b[2]-a[2]);$('lx-assoc').textContent=as.length?as.slice(0,10).map(([w,a,c])=>`«${w}» → ${a} (${c})`).join('   '):'пока нет';
+}
+
+/* ================= чат ================= */
+function push(m){m.d=C.day;m.h=C.hour;chat.push(m);if(chat.length>160)chat.splice(0,chat.length-160);renderMsg(m)}
+function sys(t){push({who:'sys',text:t})}
+function sys2(t,c){if(c==='big'||/Цель|Кобр|Арестован|больнице/.test(t))push({who:'sys',text:t})}
+function renderMsg(m){
+  if(m.who==='th'&&!$('thoughts').checked)return;
+  const box=$('msgs'),d=document.createElement('div');d.className='m '+m.who;d.textContent=m.text;
+  if(m.who==='me'||m.who==='rico'){const s=document.createElement('small');s.textContent=`д${m.d} ${hhmm(m.h)}`+(m.who==='me'&&m.pending?' · не доставлено':'')+(m.call?' · написал сам':'');d.append(s)}
+  box.append(d);while(box.children.length>160)box.firstChild.remove();box.scrollTop=box.scrollHeight;
+}
+function rerenderChat(){$('msgs').innerHTML='';for(const m of chat)renderMsg(m)}
+$('thoughts').onchange=rerenderChat;
+$('sendf').onsubmit=ev=>{ev.preventDefault();const t=$('inp').value.trim();if(!t)return;$('inp').value='';
+  const m={who:'me',text:t,pending:!C.phone};push(m);inbox.push(m);
+  if(C.phone)deliver('phone');else if(inbox.length===1)sys('Телефона у Рико нет. Сообщение ждёт на автоответчике до ближайшей будки. Можно передать ему телефон с полки ниже.');renderSig();save()};
+function applyBias(list,hours){cBias.fill(0);for(const x of list){const i=AIDS.indexOf(String(x.a));if(i>=0)cBias[i]=clamp(Number(x.w)||0,-3,3)}cBiasUntil=absH(C)+clamp(Number(hours)||8,2,24)}
+function stateLine(e){return `День ${e.day}, ${hhmm(e.hour)}, место: ${LOC[e.loc].n}. Деньги $${e.money}. Здоровье ${Math.round(e.health)}, энергия ${Math.round(e.energy)}, сытость ${Math.round(e.food)}, настроение ${Math.round(e.mood)}, полиция ${Math.round(e.heat)}, давление «Кобр» ${Math.round(e.gang)}. Знания ${e.know.toFixed(1)}/3, побед в гонках ${e.wins}. Телефон: ${e.phone?'есть':'нет'}, машина: ${e.car?'есть':'нет'}, мастерская: ${e.shop?'есть':'нет'}.`}
+async function deliver(how){
+  if(asking||!inbox.length)return;asking=true;
+  const msgs=inbox.splice(0);msgs.forEach(m=>m.pending=false);for(const m of msgs)learnText(m.text);renderSig();
+  const typing={who:'th',text:'Рико печатает…'};push(typing);
+  let replies=[];
+  if(mindMode==='claude'&&sample){
+    const ctx=chat.filter(m=>m.who==='me'||m.who==='rico').filter(m=>!msgs.includes(m)).slice(-10).map(m=>(m.who==='me'?'Голос: ':'Рико: ')+m.text).join('\n')||'(раньше не общались)';
+    const recent=chat.filter(m=>m.who==='th'||m.who==='sys').slice(-8).map(m=>'- '+m.text).join('\n');
+    try{
+      const r=await sample.json(`Ты отыгрываешь Рико, персонажа городской симуляции. 24 года, вернулся в родной приморский Порт-Сол почти без денег. Упрямый, ироничный, верный своим, любит маму. Говорит просто, без мата. С ним переписывается «голос» — загадочный собеседник${MIND.name?' по имени '+MIND.name:''}. Доверие Рико к голосу: ${MIND.trust}/100. ${how==='booth'?'Своего телефона нет, Рико читает автоответчик в уличной будке.':''}
+Цели: ${MS.map(([k,n])=>`${C.ms[k]?'[x]':'[ ]'} ${n}`).join('; ')}.
+Состояние: ${stateLine(C)}
+Недавно:
+${recent||'- ничего особенного'}
+Прошлая переписка:
+${ctx}
+Новые сообщения:
+${msgs.map(m=>'- '+m.text).join('\n')}
+Дела (id): ${AIDS.map(k=>`${k} (${ACT[k].n})`).join(', ')}.
+Ответь ТОЛЬКО JSON: {"reply":"1–3 коротких предложения","thought":"мысль про себя","bias":[{"a":"id","w":от -3 до 3}],"hours":2–24}`,{modelTier:'quick',cache:false});
+      if(r&&typeof r.reply==='string'){replies.push({r:r.reply,bias:r.bias,hours:r.hours,th:r.thought})}
+    }catch(e){if(e&&['not_granted','sampling_disabled','not_declared','capability_disabled'].includes(e.code)){sample=null;sys('Claude недоступен, отвечает свой разум.');setMode('own')}}
+  }
+  if(mindMode==='ai'&&AI.ready&&!replies.length){const wait0=Date.now();while(AI.busy&&Date.now()-wait0<60000)await new Promise(r=>setTimeout(r,300));AI.busy=true;try{replies.push(await aiChat(msgs))}catch(e){console.error(e);sys('Нейросеть сбилась, ответил разум на правилах.')}AI.busy=false}
+  if(!replies.length){await new Promise(r=>setTimeout(r,500+R()*700));for(const m of msgs)replies.push(mindMode==='learn'?learnReply(m.text):mindReply(m.text))}
+  chat.splice(chat.indexOf(typing),1);rerenderChat();
+  for(const x of replies){push({who:'rico',text:String(x.r).slice(0,400)});if(x.th)push({who:'th',text:String(x.th).slice(0,200)});if(Array.isArray(x.bias)&&x.bias.length)applyBias(x.bias,x.hours)}
+  asking=false;renderSig();save();
+  if(inbox.length&&C.phone)deliver('phone');
+}
+function renderSig(){const s=$('sig');if(C.phone){s.textContent='на связи';s.className='sig on'}else{s.textContent='нет телефона'+(inbox.length?` · на автоответчике: ${inbox.length}`:'');s.className='sig'}
+  $('trust').textContent='доверие '+Math.round(MIND.trust)}
+function setMode(m){mindMode=m;document.querySelectorAll('.mode').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));if(typeof aiUI==='function')aiUI()}
+document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>{if(b.dataset.m==='claude'&&!sample){sys('Claude недоступен на этой странице.');return}setMode(b.dataset.m);save(true)});
+
+/* ================= нейросеть на телефоне (llama.cpp в браузере) ================= */
+const WLL='https://cdn.jsdelivr.net/npm/@wllama/wllama@3.8.1/esm/index.js';
+const WLL_WASM='https://cdn.jsdelivr.net/npm/@wllama/wllama@3.8.1/src/wasm/wllama.wasm';
+const HFM={q15:{repo:'Qwen/Qwen2.5-1.5B-Instruct-GGUF',file:'qwen2.5-1.5b-instruct-q4_k_m.gguf',n:'Qwen2.5 1.5B'},q3:{repo:'bartowski/Qwen2.5-3B-Instruct-GGUF',file:'Qwen2.5-3B-Instruct-Q4_K_M.gguf',n:'Qwen2.5 3B'}};
+const AI={w:null,ready:false,busy:false,name:'',lastReflectDay:0};
+function aiStatus(t,isErr){const s=$('ai-st');s.textContent=t;s.style.color=isErr?'var(--bad)':''}
+function aiUI(){$('aiBox').hidden=!(mindMode==='ai');$('ai-load').hidden=AI.ready;$('ai-ok').hidden=!AI.ready;if(AI.ready)$('ai-name').textContent=AI.name}
+async function aiInit(){
+  if(AI.w)return AI.w;
+  const mod=await import(WLL);
+  const w=new mod.Wllama({default:WLL_WASM},{logger:mod.LoggerWithoutDebug,allowOffline:true});
+  try{w.setCompat('default')}catch(e){}
+  AI.w=w;return w;
+}
+const prog=p=>{if(p&&p.total)aiStatus(`Загрузка: ${Math.round(p.loaded/p.total*100)}% (${(p.loaded/1e9).toFixed(2)} из ${(p.total/1e9).toFixed(2)} ГБ)`)};
+async function aiLoad(kind,arg){
+  if(AI.busy)return;AI.busy=true;$('ai-load').querySelectorAll('button,input').forEach(b=>b.disabled=true);
+  try{
+    aiStatus('Запускаю движок…');const w=await aiInit();
+    if(AI.ready){await w.exit().catch(()=>{});AI.ready=false;AI.w=null;await aiInit()}
+    const params={n_ctx:2048,progressCallback:prog};
+    if(kind==='file'){if(arg.size>2.1e9)throw new Error('Файл больше 2 ГБ: браузер его не потянет. Возьми модель 1–3B в Q4.');aiStatus('Читаю файл с телефона…');await AI.w.loadModel([arg],{n_ctx:2048});AI.name=arg.name}
+    else{const m=HFM[arg];aiStatus('Скачиваю '+m.n+'… (один раз, дальше из памяти телефона)');await AI.w.loadModelFromHF({repo:m.repo,file:m.file},params);AI.name=m.n;try{localStorage.setItem(KEY+'-ai',arg)}catch(e){}}
+    AI.ready=true;aiStatus('');sys(`Нейросеть загружена: ${AI.name}. Теперь Рико думает сам, прямо на телефоне.`);
+  }catch(e){console.error(e);aiStatus('Не получилось: '+(e&&e.message||e)+'. Попробуй модель поменьше (1.5B).',true)}
+  AI.busy=false;$('ai-load').querySelectorAll('button,input').forEach(b=>b.disabled=false);aiUI();
+}
+function aiPrompt(){
+  const goals=MS.map(([k,n])=>`${C.ms[k]?'[x]':'[ ]'} ${n}`).join('; ');
+  const mem=[];if(MIND.name)mem.push('собеседника зовут '+MIND.name);for(const f of MIND.facts.slice(-4))mem.push('о собеседнике: '+f);if(MIND.gifts.length)mem.push('он дарил: '+[...new Set(MIND.gifts)].slice(-5).join(', '));for(const d of (MIND.diary||[]).slice(-3))mem.push('твой вывод: '+d);
+  const recent=chat.filter(m=>m.who==='sys'||m.who==='th').slice(-6).map(m=>'- '+m.text).join('\n');
+  return `Ты — Рико, 24 года, парень из приморского города Порт-Сол. Вернулся домой почти без денег. Упрямый, ироничный, верный своим, любишь маму. Говоришь по-русски, коротко и просто, как живой человек, без мата. Тебе пишет загадочный «голос» по телефону. Доверие к нему: ${Math.round(MIND.trust)}/100. Ты не обязан слушаться.
+Твои цели: ${goals}.
+Сейчас: ${stateLine(C)}
+Память: ${mem.join('; ')||'пока пусто'}.
+Недавние события:
+${recent||'- ничего'}
+Дела, которые ты можешь делать (id): ${AIDS.join(', ')}.
+Всегда отвечай одним JSON-объектом: {"reply":"твой ответ, 1–2 предложения","thought":"мысль про себя","plan":"id дела, которое хочешь сделать, или пусто","avoid":"id дела, которого будешь избегать, или пусто"}`;
+}
+function aiParse(text){let o=null;try{o=JSON.parse(text)}catch(e){const m=text.match(/\{[\s\S]*\}/);if(m)try{o=JSON.parse(m[0])}catch(e2){}}
+  if(!o||typeof o!=='object')return{r:text.replace(/[{}"]/g,'').slice(0,300)||'…'};
+  const b=[];if(ACT[o.plan])b.push({a:o.plan,w:2});if(ACT[o.avoid])b.push({a:o.avoid,w:-2.5});
+  return{r:String(o.reply||'…'),th:o.thought?String(o.thought):'',bias:b,hours:8}}
+async function aiChat(msgs){
+  const hist=[];for(const m of chat.filter(m=>(m.who==='me'||m.who==='rico')&&!msgs.includes(m)).slice(-6))hist.push({role:m.who==='me'?'user':'assistant',content:m.text});
+  const res=await AI.w.createChatCompletion({messages:[{role:'system',content:aiPrompt()},...hist,{role:'user',content:msgs.map(m=>m.text).join('\n')}],max_tokens:160,temperature:.8,response_format:{type:'json_object'}});
+  return aiParse(res.choices[0].message.content||'');
+}
+async function aiReflect(){
+  if(!AI.ready||AI.busy||asking||mindMode!=='ai'||AI.lastReflectDay===C.day)return;AI.lastReflectDay=C.day;AI.busy=true;
+  try{const res=await AI.w.createChatCompletion({messages:[{role:'system',content:aiPrompt()},{role:'user',content:'Наступило утро. Подумай про себя о вчерашнем дне: что получилось, что нет, чему научился, и реши, чем займёшься сегодня. В "reply" напиши короткий вывод-урок (одно предложение).'}],max_tokens:160,temperature:.8,response_format:{type:'json_object'}});
+    const r=aiParse(res.choices[0].message.content||'');
+    if(r.th)push({who:'th',text:'Утро. '+r.th});
+    if(r.r&&r.r!=='…'){MIND.diary=MIND.diary||[];MIND.diary.push(r.r.slice(0,160));if(MIND.diary.length>8)MIND.diary.shift();push({who:'th',text:'Вывод: '+r.r})}
+    if(r.bias.length)applyBias(r.bias,14);save();
+  }catch(e){console.error(e)}AI.busy=false;
+}
+$('ai-file').onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)aiLoad('file',f);e.target.value=''};
+$('ai-q15').onclick=()=>aiLoad('hf','q15');$('ai-q3').onclick=()=>aiLoad('hf','q3');
+$('ai-swap').onclick=()=>{AI.ready=false;aiUI()};
+
+/* ================= предметы ================= */
+const ITEMS=[
+  {id:'burger',n:'Бургер',d:'+50 сытости',use:e=>{e.food+=50},say:['О, еда! Спасибо.','Как ты узнал, что я голодный?']},
+  {id:'energy',n:'Энергетик',d:'+40 энергии',use:e=>{e.energy+=40},say:['Взбодрился. Поехали!','Сердце стучит, зато не сплю.']},
+  {id:'aid',n:'Аптечка',d:'+40 здоровья',use:e=>{e.health+=40},say:['Подлатал себя. Спасибо.']},
+  {id:'cash',n:'$100',d:'наличные',use:e=>{e.money+=100},say:['Сотка? Откуда?.. Ладно, не спрашиваю.','Спасибо, верну. Наверное.']},
+  {id:'book',n:'Учебник',d:'+0.5 знаний',use:(e,ev)=>{e.know+=.5;if(e.know>=3)mile(e,'edu',ev)},say:['Почитаю на ночь.','Ну, учиться так учиться.']},
+  {id:'charm',n:'Талисман',d:'удача в гонках на сутки',use:e=>{e.luck=absH(e)+24},say:['Талисман? Ладно, на удачу.']},
+  {id:'bat',n:'Бита',d:'смелее с «Кобрами»',once:e=>e.bat,use:e=>{e.bat=true},say:['С этим разговор с «Кобрами» пойдёт иначе.']},
+  {id:'phone',n:'Телефон',d:'всегда на связи',once:e=>e.phone,use:(e,ev)=>{e.phone=true;mile(e,'phone',ev)},say:['Телефон! Теперь пиши когда хочешь.']},
+  {id:'car',n:'Ключи от тачки',d:'своя машина',once:e=>e.car,use:(e,ev)=>{e.car=true;mile(e,'car',ev)},say:['ЭТО МНЕ?! Ты лучший.']},
+];
+function renderItems(){const box=$('items');box.innerHTML='';for(const it of ITEMS){const b=document.createElement('button');b.type='button';
+  const used=MIND.giftDay[it.id]===C.day,own=it.once&&it.once(C);b.disabled=used||own||!champ;
+  b.innerHTML=`<b></b><small></small>`;b.firstChild.textContent=it.n;b.lastChild.textContent=own?'уже есть':used?'завтра снова':it.d;
+  b.onclick=()=>give(it);box.append(b)}}
+function give(it){
+  lexNote('item',ITEMCON[it.id]);
+  const ev=[];it.use(C,ev);fix(C);MIND.giftDay[it.id]=C.day;MIND.gifts.push(it.n);if(MIND.gifts.length>12)MIND.gifts.shift();trust(4);
+  sys(`Ты передал Рико: ${it.n}.`);for(const x of ev){sys2(x.t,x.c)}
+  setTimeout(()=>{push({who:'rico',text:pick(it.say)});renderSig()},500);
+  renderItems();renderPanels();save(true);
+}
+
+/* ================= 3D ================= */
+const stage=$('stage');
+let renderer,scene,camera,controls,sun,hemi,ricoObj,carObj,ricoLight,locMeshes=[],boothMats=[],npcObjs=[],ok3d=false,follow=false;
+const WX=x=>(x-2.5)*12;
+function W3(k){const l=LOC[k];return{x:WX(l.x),z:WX(l.y)}}
+function lpath(f,t,k){const a=W3(f),b=W3(t),tot=Math.abs(b.x-a.x)+Math.abs(b.z-a.z)||1,d=k*tot,dx=Math.abs(b.x-a.x);
+  return d<=dx?{x:a.x+Math.sign(b.x-a.x)*d,z:a.z}:{x:b.x,z:a.z+Math.sign(b.z-a.z)*(d-dx)}}
+function label(text,color){const c=document.createElement('canvas');c.width=512;c.height=96;const g=c.getContext('2d');
+  g.font='600 40px "Golos Text", system-ui, sans-serif';const w=Math.min(500,g.measureText(text).width+36);
+  g.fillStyle='rgba(22,17,29,.82)';g.beginPath();if(g.roundRect)g.roundRect((512-w)/2,14,w,64,14);else g.rect((512-w)/2,14,w,64);g.fill();
+  g.fillStyle=color||'#f3ebe6';g.textAlign='center';g.textBaseline='middle';g.fillText(text,256,48);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthWrite:false,depthTest:false,transparent:true}));s.renderOrder=10;s.scale.set(13,2.45,1);return s}
+function person(color,scale){const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(.45,.55,1.4,10),new THREE.MeshLambertMaterial({color}));body.position.y=.7;body.castShadow=true;
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.42,12,10),new THREE.MeshLambertMaterial({color:0xc68b59}));head.position.y=1.75;head.castShadow=true;
+  g.add(body,head);g.scale.setScalar(scale||1);return g}
+const HGT={office:16,casino:10,hospital:11,college:9,port:6,cars:5,phoneshop:6,gym:6,diner:5,home:7,mom:6,garage:5,shop:6,den:5,lot:.4,beach:.3};
+let homeMesh,shopSign,momLabel;
+function init3d(){
+  if(!window.THREE){stage.insertAdjacentHTML('beforeend','<p class="note" style="padding:20px">Не удалось загрузить 3D-движок. Проверь интернет и обнови страницу.</p>');return}
+  renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));renderer.shadowMap.enabled=true;
+  stage.prepend(renderer.domElement);
+  scene=new THREE.Scene();scene.background=new THREE.Color(0x9ec9e8);scene.fog=new THREE.Fog(0x9ec9e8,110,260);
+  camera=new THREE.PerspectiveCamera(42,1,.5,600);camera.position.set(30,40,50);
+  controls=new THREE.OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.maxPolarAngle=1.38;controls.minDistance=14;controls.maxDistance=170;controls.target.set(0,0,4);
+  hemi=new THREE.HemisphereLight(0xffe2c4,0x2a1f3a,.75);scene.add(hemi);
+  sun=new THREE.DirectionalLight(0xffd2a8,1);sun.position.set(45,70,25);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
+  Object.assign(sun.shadow.camera,{left:-50,right:50,top:50,bottom:-50,near:1,far:220});scene.add(sun);
+  const water=new THREE.Mesh(new THREE.PlaneGeometry(800,800),new THREE.MeshPhongMaterial({color:0x1d5566,shininess:90,specular:0x6fb6c9}));water.rotation.x=-Math.PI/2;water.position.y=-.7;scene.add(water);
+  const sand=new THREE.Mesh(new THREE.BoxGeometry(92,1,92),new THREE.MeshLambertMaterial({color:0xb89d6a}));sand.position.y=-.55;sand.receiveShadow=true;scene.add(sand);
+  const ground=new THREE.Mesh(new THREE.BoxGeometry(74,1,74),new THREE.MeshLambertMaterial({color:0x4a3d57}));ground.position.y=-.5;ground.receiveShadow=true;scene.add(ground);
+  const roadM=new THREE.MeshLambertMaterial({color:0x241c2d}),lineM=new THREE.MeshBasicMaterial({color:0x8a7a63});
+  for(let i=0;i<6;i++){const v=WX(i);
+    const a=new THREE.Mesh(new THREE.BoxGeometry(3.2,.12,63.2),roadM);a.position.set(v,.02,0);a.receiveShadow=true;scene.add(a);
+    const b=new THREE.Mesh(new THREE.BoxGeometry(63.2,.12,3.2),roadM);b.position.set(0,.03,v);b.receiveShadow=true;scene.add(b);
+    for(let k=-29;k<30;k+=4){const d1=new THREE.Mesh(new THREE.BoxGeometry(.15,.14,1.6),lineM);d1.position.set(v,.04,k);scene.add(d1);const d2=new THREE.Mesh(new THREE.BoxGeometry(1.6,.14,.15),lineM);d2.position.set(k,.05,v);scene.add(d2)}}
+  const used=new Set(),key=(x,z)=>Math.round(x)+','+Math.round(z);
+  for(const k in LOC){const l=LOC[k],dx=l.x<5?1:-1,dz=l.y<5?1:-1,px=WX(l.x)+dx*4.2,pz=WX(l.y)+dz*4.2;used.add(key(px,pz));
+    const h=HGT[k]||5;let mesh;
+    if(k==='lot'){mesh=new THREE.Mesh(new THREE.BoxGeometry(6,.3,6),new THREE.MeshLambertMaterial({color:0x8a6a52}));mesh.position.set(px,.15,pz)}
+    else if(k==='beach'){mesh=new THREE.Mesh(new THREE.BoxGeometry(6,.25,6),new THREE.MeshLambertMaterial({color:0xf0d79a}));mesh.position.set(px,.13,pz);
+      const pole=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,2.4),new THREE.MeshLambertMaterial({color:0xffffff}));pole.position.set(px,1.2,pz);scene.add(pole);
+      const um=new THREE.Mesh(new THREE.ConeGeometry(1.6,.8,10),new THREE.MeshLambertMaterial({color:0xff5d73}));um.position.set(px,2.6,pz);um.castShadow=true;scene.add(um)}
+    else{mesh=new THREE.Mesh(new THREE.BoxGeometry(5.2,h,5.2),new THREE.MeshLambertMaterial({color:new THREE.Color(l.c)}));mesh.position.set(px,h/2,pz);mesh.castShadow=true;mesh.receiveShadow=true;
+      const roof=new THREE.Mesh(new THREE.BoxGeometry(5.5,.35,5.5),new THREE.MeshLambertMaterial({color:new THREE.Color(l.c).multiplyScalar(.6)}));roof.position.set(px,h+.17,pz);roof.castShadow=true;scene.add(roof);
+      const door=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.8,.1),new THREE.MeshLambertMaterial({color:0x1a1320}));door.position.set(px,.9,pz-dz*2.62);scene.add(door)}
+    mesh.userData.loc=k;locMeshes.push(mesh);scene.add(mesh);
+    const lb=label(l.n);lb.position.set(px,Math.max(h,1)+2.4,pz);scene.add(lb);
+    if(k==='shop')shopSign=lb;if(k==='mom')momLabel=lb;
+  }
+  const pal=[0x4a3f58,0x54475f,0x463b52,0x5a4d66,0x4e4259];
+  for(let x=0;x<6;x++)for(let y=0;y<6;y++)for(const[dx,dz]of[[1,1],[1,-1],[-1,1],[-1,-1]]){
+    if(x+dx<0||x+dx>5||y+dz<0||y+dz>5)continue;const px=WX(x)+dx*4.2,pz=WX(y)+dz*4.2;if(used.has(key(px,pz)))continue;used.add(key(px,pz));
+    if(R()<.18){const tr=new THREE.Mesh(new THREE.ConeGeometry(1.2,3,8),new THREE.MeshLambertMaterial({color:0x3f7a4a}));tr.position.set(px,1.5,pz);tr.castShadow=true;scene.add(tr);continue}
+    const h=1.5+R()*4,w=3.4+R()*1.2;const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,w),new THREE.MeshLambertMaterial({color:pal[(R()*pal.length)|0]}));b.position.set(px,h/2,pz);b.castShadow=true;b.receiveShadow=true;scene.add(b);
+    const win=new THREE.Mesh(new THREE.BoxGeometry(w+.02,h*.6,w*.5),new THREE.MeshBasicMaterial({color:0xffd9a0,transparent:true,opacity:0}));win.position.set(px,h*.55,pz);win.userData.win=true;scene.add(win);windows.push(win)}
+  for(const[x,y]of BOOTHS){const g=new THREE.Group();const m1=new THREE.Mesh(new THREE.BoxGeometry(1.1,2.6,1.1),new THREE.MeshLambertMaterial({color:0x1f6fa8}));m1.position.y=1.3;m1.castShadow=true;
+    const glow=new THREE.MeshBasicMaterial({color:0x9fe0ff});const w=new THREE.Mesh(new THREE.BoxGeometry(1.14,1,.9),glow);w.position.y=1.7;boothMats.push(glow);g.add(m1,w);g.position.set(WX(x)+2.1,0,WX(y)-2.1);scene.add(g)}
+  ricoObj=person(0xff8a4c,1.15);const cap=new THREE.Mesh(new THREE.CylinderGeometry(.45,.45,.18,12),new THREE.MeshLambertMaterial({color:0x2a2a2a}));cap.position.y=2.1;ricoObj.add(cap);scene.add(ricoObj);
+  carObj=new THREE.Group();const cb=new THREE.Mesh(new THREE.BoxGeometry(2.6,.8,1.4),new THREE.MeshLambertMaterial({color:0xffd166}));cb.position.y=.6;cb.castShadow=true;
+  const cc=new THREE.Mesh(new THREE.BoxGeometry(1.4,.6,1.2),new THREE.MeshLambertMaterial({color:0x2c2338}));cc.position.set(-.2,1.25,0);carObj.add(cb,cc);carObj.visible=false;scene.add(carObj);
+  ricoLight=new THREE.PointLight(0xffb070,0,18);scene.add(ricoLight);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(.9,1.2,24),new THREE.MeshBasicMaterial({color:0xff8a4c,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=.08;ricoObj.add(ring);
+  for(const o of NPCS){const p=person(o.c,.85);scene.add(p);npcObjs.push(p)}
+  const ray=new THREE.Raycaster(),mv=new THREE.Vector2();let down=null;
+  renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY]});
+  renderer.domElement.addEventListener('pointerup',e=>{if(!down)return;const d=Math.hypot(e.clientX-down[0],e.clientY-down[1]);down=null;if(d>6)return;
+    const r=renderer.domElement.getBoundingClientRect();mv.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mv,camera);
+    const hit=ray.intersectObjects(locMeshes,false)[0];if(hit)openMenu(hit.object.userData.loc,e.clientX-r.left,e.clientY-r.top);else closeMenu()});
+  new ResizeObserver(resize3d).observe(stage);resize3d();ok3d=true;
+}
+const windows=[];
+function resize3d(){if(!renderer)return;const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+function lerpC(a,b,t){return new THREE.Color(a).lerp(new THREE.Color(b),t)}
+function skyAt(h){h=((h%24)+24)%24;
+  if(h>=7&&h<17)return{c:0x9ec9e8,s:1,n:0};if(h>=17&&h<19.5){const t=(h-17)/2.5;return{c:lerpC(0x9ec9e8,0xf2915f,t),s:1-t*.4,n:t*.3}}
+  if(h>=19.5&&h<21.5){const t=(h-19.5)/2;return{c:lerpC(0xf2915f,0x120d22,t),s:.6-t*.45,n:.3+t*.7}}
+  if(h>=21.5||h<5)return{c:0x120d22,s:.15,n:1};const t=(h-5)/2;return{c:lerpC(0x120d22,0x9ec9e8,t),s:.15+t*.85,n:1-t}}
+function render3d(now){
+  if(!ok3d)return;
+  const sk=skyAt(showHour),col=sk.c instanceof THREE.Color?sk.c:new THREE.Color(sk.c);scene.background=col;scene.fog.color=col;
+  sun.intensity=sk.s;hemi.intensity=.25+sk.s*.5;ricoLight.intensity=sk.n*1.6;
+  for(const w of windows)w.material.opacity=sk.n*.55;
+  const bp=.55+.45*Math.sin(now/250);for(const m of boothMats)m.color.setHex(inbox.length&&!C.phone?(bp>.5?0xffffff:0x5ec8f2):0x9fe0ff);
+  let p,moving=false;
+  if(anim){const k=Math.min(1,(now-anim.t0)/anim.dur),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;p=lpath(anim.from,anim.to,e);moving=true;
+    const q=lpath(anim.from,anim.to,Math.min(1,e+.02));if(Math.abs(q.x-p.x)+Math.abs(q.z-p.z)>.001)ricoObj.rotation.y=Math.atan2(q.x-p.x,q.z-p.z);
+    if(k>=1){const r=anim.res;anim=null;r()}}
+  else{const a=W3(C.loc),l=LOC[C.loc];p={x:a.x+(l.x<5?1.8:-1.8),z:a.z+(l.y<5?1.8:-1.8)}}
+  const useCar=moving&&C.car;carObj.visible=useCar;ricoObj.visible=!!champ&&!useCar;
+  ricoObj.position.set(p.x,moving?Math.abs(Math.sin(now/110))*.15:0,p.z);carObj.position.set(p.x,0,p.z);carObj.rotation.y=ricoObj.rotation.y-Math.PI/2;
+  ricoLight.position.set(p.x,4,p.z);
+  NPCS.forEach((o,i)=>{const ob=npcObjs[i];let q;if(o.anim){const k=Math.min(1,(now-o.anim.t0)/o.anim.dur);q=lpath(o.anim.from,o.anim.to,k);
+      const q2=lpath(o.anim.from,o.anim.to,Math.min(1,k+.02));if(Math.abs(q2.x-q.x)+Math.abs(q2.z-q.z)>.001)ob.rotation.y=Math.atan2(q2.x-q.x,q2.z-q.z)}
+    else{const a=W3(o.loc);q={x:a.x-1.6+(i%3)*1.1,z:a.z-1.8+(i%2)*.9}}ob.position.set(q.x,0,q.z)});
+  if(follow&&champ){controls.target.lerp(new THREE.Vector3(p.x,0,p.z),.08)}
+  controls.update();renderer.render(scene,camera);
+}
+function openMenu(loc,x,y){const m=$('menu');m.innerHTML='';const t=document.createElement('b');t.textContent=LOC[loc].n;m.append(t);
+  if(!champ){const s=document.createElement('small');s.textContent='Сначала запусти эволюцию: Рико появится в городе.';m.append(s)}
+  else{let any=false;AIDS.forEach((id,i)=>{if(ACT[id].loc!==loc)return;any=true;const b=document.createElement('button');b.type='button';
+    const okA=allowed(C,i);b.textContent=ACT[id].n+(ACT[id].cost?` · $${ACT[id].cost}`:'');b.disabled=!okA;if(!okA)b.title='Сейчас недоступно';
+    b.onclick=()=>{order=i;lexNote('order',id);closeMenu();push({who:'me',text:`(отправил Рико: ${ACT[id].n})`});};m.append(b)});
+    if(!any){const s=document.createElement('small');s.textContent='Здесь нечего делать.';m.append(s)}}
+  const c=document.createElement('button');c.type='button';c.textContent='Закрыть';c.onclick=closeMenu;m.append(c);
+  m.hidden=false;const W=stage.clientWidth,H=stage.clientHeight;m.style.left=Math.min(Math.max(8,x),W-270)+'px';m.style.top=Math.min(Math.max(8,y),H-m.offsetHeight-8)+'px'}
+function closeMenu(){$('menu').hidden=true}
+
+/* ================= кадр ================= */
+function frame(now){
+  if(evoOn){if($('turbo').checked){const t0=performance.now();while(performance.now()-t0<30)evolveOnce()}else if(now-lastEvo>350){lastEvo=now;evolveOnce()}}
+  cityTick(now);npcTick(now);
+  const dur=Math.max(1,actUntil-showT0);showHour=showFrom+(showTo-showFrom)*clamp((now-showT0)/dur,0,1);
+  if(shopSign&&C.shop!==shopSign.userData.s){shopSign.userData.s=C.shop}
+  render3d(now);
+  requestAnimationFrame(frame);
+}
+
+/* ================= панели ================= */
+const cc=$('curve'),cx=cc.getContext('2d');
+function drawCurve(){
+  const d=window.devicePixelRatio||1,w=700,h=170;cc.width=w*d;cc.height=h*d;cx.setTransform(d,0,0,d,0,0);cx.clearRect(0,0,w,h);
+  cx.font='11px "JetBrains Mono", monospace';cx.fillStyle='#a898a9';
+  if(hist.length<2){cx.fillText('График появится после первых поколений.',10,h/2);return}
+  const n=Math.min(140,hist.length),per=hist.length/n,B=[],A=[];
+  for(let i=0;i<n;i++){let sb=0,sa=0,c=0;for(let j=Math.floor(i*per);j<Math.max(Math.floor(i*per)+1,Math.floor((i+1)*per));j++){sb+=hist[j].b;sa+=hist[j].a;c++}B.push(sb/c);A.push(sa/c)}
+  const mn=Math.max(-60,Math.min(0,...A)),mx=Math.max(10,...B),L=40,T=8,Wd=w-L-10,Hd=h-T-22;for(let i=0;i<n;i++){A[i]=Math.max(mn,A[i]);B[i]=Math.max(mn,B[i])}
+  const X=i=>L+i*(Wd/(n-1||1)),Y=v=>T+Hd-(v-mn)/(mx-mn)*Hd;
+  cx.strokeStyle='#382d45';cx.textAlign='right';
+  for(const t of [mn,0,mx/2,mx]){if(t===mn&&mn===0)continue;cx.beginPath();cx.moveTo(L,Y(t));cx.lineTo(w-10,Y(t));cx.stroke();cx.fillText(Math.round(t),L-5,Y(t)+4)}
+  cx.textAlign='left';cx.fillText(`поколения 1…${gen}`,L,h-5);
+  const line=(arr,col)=>{cx.strokeStyle=col;cx.lineWidth=1.8;cx.beginPath();arr.forEach((v,i)=>i?cx.lineTo(X(i),Y(v)):cx.moveTo(X(i),Y(v)));cx.stroke();cx.fillStyle=col;cx.beginPath();cx.arc(X(n-1),Y(arr[n-1]),3,0,7);cx.fill()};
+  line(A,'#2ec4b6');line(B,'#ff8a4c');
+}
+function bar(l,v,max,cls,txt){return `<span>${l}</span><div class="bar"><i class="${cls}" style="width:${clamp(v/max*100,0,100)}%"></i></div><span class="num">${txt??Math.round(v)}</span>`}
+const lv=v=>v<25?'crit':v<45?'warn':'';
+let lastItemsDay=-1,lastChamp=null;
+function renderPanels(){
+  $('k-gen').textContent=gen.toLocaleString('ru-RU');const last=hist[hist.length-1];
+  $('k-best').textContent=last?Math.round(last.b):'—';$('k-avg').textContent=last?Math.round(last.a):'—';$('k-champ').textContent=champ?Math.round(champFit):'—';
+  const m=$('money');m.textContent=(C.money<0?'−$':'$')+Math.abs(C.money);m.className='money'+(C.money<0?' neg':'');
+  $('stats').innerHTML=bar('Здоровье',C.health,100,lv(C.health))+bar('Энергия',C.energy,100,lv(C.energy))+bar('Сытость',C.food,100,lv(C.food))+bar('Настроение',C.mood,100,lv(C.mood))+bar('Полиция',C.heat,100,C.heat>50?'crit':C.heat>25?'warn':'t')+bar('«Кобры»',C.gang,100,C.gang>=60?'crit':C.gang>=30?'warn':'t')+bar('Вождение',C.drv,6,'t',C.drv.toFixed(1))+bar('Знания',C.know,3,'t',C.know.toFixed(1));
+  $('ms').innerHTML=MS.map(([k,n,p])=>`<li class="${C.ms[k]?'done':''}"><span>${n}</span><small>${C.ms[k]?'день '+C.ms[k]:'+'+p}</small></li>`).join('');
+  $('clock').textContent=`День ${C.day} · ${hhmm(showHour)}`;
+  $('doing').textContent=!champ?'ждёт эволюцию':doingText();
+  $('lx-heard').textContent=LEX.heard;renderLex();
+  if(lastItemsDay!==C.day||lastChamp!==!!champ){lastItemsDay=C.day;lastChamp=!!champ;renderItems()}
+  drawCurve();renderSig();
+}
+
+/* ================= сохранение ================= */
+const encG=g=>{const u=new Uint8Array(g.buffer);let s='';for(const b of u)s+=String.fromCharCode(b);return btoa(s)};
+const decG=s=>{const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new Float32Array(u.buffer)};
+let saveT=0;
+function save(force){const now=Date.now();if(!force&&now-saveT<5000)return;saveT=now;
+  try{localStorage.setItem(KEY,JSON.stringify({gen,hist:hist.slice(-1500),pop:pop.map(encG),champ:champ&&encG(champ),champFit,C,chat:chat.slice(-120),inbox:inbox.map(m=>chat.indexOf(m)),bias:Array.from(cBias),cBiasUntil,MIND,mindMode,LEX}))}catch(e){}}
+function load(){try{const t=localStorage.getItem(KEY);if(!t)return false;const o=JSON.parse(t);
+  if(!o.pop||o.pop.length!==POP||decG(o.pop[0]).length!==NA*NF)return false;
+  gen=o.gen;hist=o.hist;pop=o.pop.map(decG);champ=o.champ?decG(o.champ):null;champFit=o.champFit;notifiedFit=champFit;C=Object.assign(newEnv(),o.C);chat=o.chat||[];
+  inbox=(o.inbox||[]).map(i=>chat[i]).filter(Boolean);cBias=Float32Array.from(o.bias||new Array(NA).fill(0));cBiasUntil=o.cBiasUntil||0;Object.assign(MIND,o.MIND||{});mindMode=o.mindMode||'ai';if(o.LEX)Object.assign(LEX,o.LEX);showFrom=showTo=absH(C);return true}catch(e){return false}}
+
+/* ================= кнопки ================= */
+function setEvo(on){evoOn=on;$('evo').textContent=on?'Пауза эволюции':(gen?'Продолжить эволюцию':'Запустить эволюцию');$('evo').classList.toggle('primary',!on)}
+$('evo').onclick=()=>setEvo(!evoOn);
+document.querySelectorAll('.spd').forEach(b=>b.onclick=()=>{speed=+b.dataset.s;document.querySelectorAll('.spd').forEach(o=>o.setAttribute('aria-pressed',o===b))});
+$('follow').onclick=()=>{follow=!follow;$('follow').setAttribute('aria-pressed',follow)};
+let armed=false;
+$('reset').onclick=()=>{if(!armed){armed=true;$('reset').textContent='Точно? Ещё раз';setTimeout(()=>{armed=false;$('reset').textContent='Всё заново'},3000);return}
+  armed=false;$('reset').textContent='Всё заново';initPop();C=newEnv();chat=[];inbox=[];cBias.fill(0);cBiasUntil=0;anim=null;actUntil=0;cur=null;order=null;showFrom=showTo=absH(C);
+  Object.assign(MIND,{trust:40,name:'',facts:[],gifts:[],giftDay:{}});Object.assign(LEX,{letters:{},words:{},bi:{},assoc:{},isa:{},nota:{},disp:{},heard:0,recent:[]});lexDirty=true;notifiedFit=-1e9;rerenderChat();setEvo(false);save(true);renderPanels();sys('Новая жизнь. Запусти эволюцию.')};
+window.addEventListener('pagehide',()=>save(true));
+
+if(!load())initPop();
+if(!window.claude)document.querySelector('.mode[data-m="claude"]').hidden=true;
+setMode(mindMode);init3d();rerenderChat();setEvo(false);renderPanels();
+if(!chat.length)sys('Запусти эволюцию: лучший клон Рико появится в городе. Потом нажимай на здания, передавай вещи и пиши ему.');
+setInterval(renderPanels,300);requestAnimationFrame(frame);
+(async()=>{try{sample=window.claude?await window.claude.use('sample'):null}catch(e){sample=null}if(!sample&&mindMode==='claude')setMode('own')})();
+window.__t={evolveOnce,get gen(){return gen},get C(){return C},mindReply,get champ(){return champ}};
+})();
+</script>
+
+</body></html>
