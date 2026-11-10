@@ -21,6 +21,9 @@ final class GameViewController: UIViewController, WKScriptMessageHandler, UIDocu
     private var scopedURL: URL?
     private var autoTried = false
     private var cancelGen = false
+    private let hud = UILabel()
+    private var hudHide: DispatchWorkItem?
+    private var pickCopy = false
 
     override var prefersStatusBarHidden: Bool { false }
     override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
@@ -39,11 +42,26 @@ final class GameViewController: UIViewController, WKScriptMessageHandler, UIDocu
         web.scrollView.backgroundColor = view.backgroundColor
         if #available(iOS 16.4, *) { web.isInspectable = true }
         view.addSubview(web)
+        hud.translatesAutoresizingMaskIntoConstraints = false
+        hud.numberOfLines = 0
+        hud.textAlignment = .center
+        hud.font = .systemFont(ofSize: 14, weight: .semibold)
+        hud.textColor = .white
+        hud.backgroundColor = UIColor.black.withAlphaComponent(0.78)
+        hud.layer.cornerRadius = 10
+        hud.clipsToBounds = true
+        hud.isHidden = true
+        view.addSubview(hud)
+        NSLayoutConstraint.activate([
+            hud.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            hud.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            hud.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, constant: -24)
+        ])
         if let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "web") {
             web.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         }
         engine.onProgress = { [weak self] p in
-            DispatchQueue.main.async { self?.progress = p; self?.sendStatus() }
+            DispatchQueue.main.async { self?.progress = p; self?.sendStatus(); self?.showHud("Загрузка модели: \(Int(p * 100))%", sticky: true) }
         }
     }
 
@@ -58,7 +76,9 @@ final class GameViewController: UIViewController, WKScriptMessageHandler, UIDocu
         case "load":
             if let name = body["name"] as? String { loadModel(named: name) }
         case "pick":
-            pickModel()
+            pickModel(copy: false)
+        case "pickCopy":
+            pickModel(copy: true)
         case "chat":
             chat(body)
         case "embed":
@@ -118,17 +138,19 @@ final class GameViewController: UIViewController, WKScriptMessageHandler, UIDocu
         if let last = UserDefaults.standard.string(forKey: "lastModel") { loadModel(named: last) }
     }
 
-    private func loadModel(named name: String) {
-        guard loading == nil else { return }
-        var url = documents.appendingPathComponent(name)
+    private func loadModel(named name: String, direct: URL? = nil) {
+        guard loading == nil else { showHud("Модель уже загружается, подожди", sticky: false); return }
+        var url = direct ?? documents.appendingPathComponent(name)
         if !FileManager.default.fileExists(atPath: url.path), let b = resolveBookmark(), b.lastPathComponent == name {
             if b.startAccessingSecurityScopedResource() { scopedURL = b }
             url = b
         }
         guard FileManager.default.fileExists(atPath: url.path) else {
             lastError = "Файл «\(name)» не найден."
+            showHud(lastError!, sticky: true)
             sendStatus(); return
         }
+        showHud("Загружаю \(name)…", sticky: true)
         loading = name; progress = 0; lastError = nil
         sendStatus()
         queue.async { [weak self] in
@@ -136,34 +158,50 @@ final class GameViewController: UIViewController, WKScriptMessageHandler, UIDocu
             do {
                 try self.engine.load(path: url.path, name: name)
                 UserDefaults.standard.set(name, forKey: "lastModel")
-                DispatchQueue.main.async { self.loading = nil; self.sendStatus(justLoaded: true) }
+                DispatchQueue.main.async { self.loading = nil; self.sendStatus(justLoaded: true); self.showHud("Модель загружена: \(name)", sticky: false) }
             } catch {
                 DispatchQueue.main.async {
                     self.loading = nil
                     self.lastError = error.localizedDescription
                     self.sendStatus()
+                    self.showHud("Ошибка: \(error.localizedDescription)", sticky: true)
                 }
             }
         }
     }
 
-    private func pickModel() {
+    private func pickModel(copy: Bool) {
+        pickCopy = copy
+        showHud(copy ? "Выбери файл модели: он будет скопирован в приложение" : "Выбери файл модели .gguf", sticky: false)
         var types: [UTType] = [.data, .item]
         if let g = UTType("io.github.flashik1.gguf") { types.insert(g, at: 0) }
         if let g = UTType(filenameExtension: "gguf") { types.insert(g, at: 0) }
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: types, asCopy: false)
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: types, asCopy: copy)
         picker.delegate = self
         picker.allowsMultipleSelection = false
         present(picker, animated: true)
     }
 
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-        guard let u = urls.first else { return }
-        openModel(u)
+        guard let u = urls.first else { showHud("Файл не получен от системы. Попробуй «Скопировать модель в приложение».", sticky: false); return }
+        showHud("Получен файл: \(u.lastPathComponent)", sticky: false)
+        if pickCopy {
+            let dest = documents.appendingPathComponent(u.lastPathComponent)
+            if u.standardizedFileURL != dest.standardizedFileURL {
+                try? FileManager.default.removeItem(at: dest)
+                do { try FileManager.default.moveItem(at: u, to: dest) } catch {
+                    do { try FileManager.default.copyItem(at: u, to: dest) } catch { showHud("Не удалось скопировать: \(error.localizedDescription)", sticky: true); return }
+                }
+            }
+            openModel(dest)
+        } else {
+            openModel(u)
+        }
     }
 
     func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
         note("Выбор модели отменён.")
+        showHud("Выбор отменён", sticky: false)
     }
 
     /// Открыть модель из выбора файла или из «Поделиться» в приложении «Файлы».
@@ -176,6 +214,14 @@ final class GameViewController: UIViewController, WKScriptMessageHandler, UIDocu
             if (try? FileManager.default.moveItem(at: url, to: dest)) != nil { url = dest }
         }
         let ok = url.startAccessingSecurityScopedResource()
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? -1
+        let readable = FileManager.default.isReadableFile(atPath: url.path)
+        if !readable {
+            showHud("Нет доступа к файлу \(url.lastPathComponent). Нажми «Скопировать модель в приложение».", sticky: true)
+            note("Нет доступа к файлу \(url.lastPathComponent) (доступ: \(ok ? "да" : "нет")). Попробуй кнопку «Скопировать модель в приложение».")
+            return
+        }
+        showHud("Файл \(url.lastPathComponent), \(String(format: "%.1f", Double(size) / 1e9)) ГБ", sticky: false)
         if !url.path.hasPrefix(documents.path),
            let data = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
             UserDefaults.standard.set(data, forKey: "modelBookmark")
@@ -186,7 +232,21 @@ final class GameViewController: UIViewController, WKScriptMessageHandler, UIDocu
             return
         }
         note("Выбран файл \(url.lastPathComponent). Загружаю модель, большая модель грузится до минуты…")
-        loadModel(named: url.lastPathComponent)
+        loadModel(named: url.lastPathComponent, direct: url)
+    }
+
+    private func showHud(_ text: String, sticky: Bool) {
+        let work = { [weak self] in
+            guard let self = self else { return }
+            self.hud.text = "  \(text)  "
+            self.hud.isHidden = false
+            self.view.bringSubviewToFront(self.hud)
+            self.hudHide?.cancel()
+            let w = DispatchWorkItem { [weak self] in self?.hud.isHidden = true }
+            self.hudHide = w
+            DispatchQueue.main.asyncAfter(deadline: .now() + (sticky ? 20 : 5), execute: w)
+        }
+        if Thread.isMainThread { work() } else { DispatchQueue.main.async(execute: work) }
     }
 
     private func note(_ text: String) {

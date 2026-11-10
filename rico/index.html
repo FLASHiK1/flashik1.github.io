@@ -1319,6 +1319,7 @@ function renderNativeBox(){const b=$('ai-native');if(!b)return;b.innerHTML='';co
   const p=document.createElement('p');p.textContent=st.loaded?`Загружена: ${st.loaded}`:'Нажми «Выбрать файл модели…» и укажи свой .gguf. Ещё можно в приложении «Файлы» нажать на файл и подержать → «Поделиться» → «Рико», или положить его в «На iPhone» → «Рико». Просто нажать на файл в «Файлах» не сработает: iOS не умеет открывать .gguf.';b.append(p);
   for(const f of st.models||[]){const r=document.createElement('button');r.type='button';r.textContent=(st.loaded===f.name?'✓ ':'Загрузить: ')+f.name+` (${(f.size/1e9).toFixed(1)} ГБ)`;r.disabled=!!st.loading||st.loaded===f.name;r.onclick=()=>nsend({cmd:'load',name:f.name});b.append(r)}
   const pk=document.createElement('button');pk.type='button';pk.className='primary';pk.textContent='Выбрать файл модели…';pk.disabled=!!st.loading;pk.onclick=()=>nsend({cmd:'pick'});b.append(pk);
+  const pc=document.createElement('button');pc.type='button';pc.textContent='Скопировать модель в приложение (если выбор не срабатывает)';pc.disabled=!!st.loading;pc.onclick=()=>nsend({cmd:'pickCopy'});b.append(pc);
   const rf=document.createElement('button');rf.type='button';rf.textContent='Обновить список';rf.onclick=()=>nsend({cmd:'status'});b.append(rf)}
 
 /* ================= Амнезия: чистый разум ================= */
