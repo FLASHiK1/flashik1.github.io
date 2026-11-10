@@ -148,7 +148,8 @@ final class GameViewController: UIViewController, WKScriptMessageHandler, UIDocu
     }
 
     private func pickModel() {
-        var types: [UTType] = [.data]
+        var types: [UTType] = [.data, .item]
+        if let g = UTType("io.github.flashik1.gguf") { types.insert(g, at: 0) }
         if let g = UTType(filenameExtension: "gguf") { types.insert(g, at: 0) }
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: types, asCopy: false)
         picker.delegate = self
@@ -158,12 +159,38 @@ final class GameViewController: UIViewController, WKScriptMessageHandler, UIDocu
 
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
         guard let u = urls.first else { return }
-        let ok = u.startAccessingSecurityScopedResource()
-        if let data = try? u.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+        openModel(u)
+    }
+
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        note("Выбор модели отменён.")
+    }
+
+    /// Открыть модель из выбора файла или из «Поделиться» в приложении «Файлы».
+    func openModel(_ u: URL) {
+        var url = u
+        // Файл, присланный копией, лежит во входящих: переносим его в папку приложения
+        if url.path.contains("/Inbox/") {
+            let dest = documents.appendingPathComponent(url.lastPathComponent)
+            try? FileManager.default.removeItem(at: dest)
+            if (try? FileManager.default.moveItem(at: url, to: dest)) != nil { url = dest }
+        }
+        let ok = url.startAccessingSecurityScopedResource()
+        if !url.path.hasPrefix(documents.path),
+           let data = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
             UserDefaults.standard.set(data, forKey: "modelBookmark")
         }
-        if ok { scopedURL = u }
-        loadModel(named: u.lastPathComponent)
+        if ok { scopedURL = url }
+        guard url.pathExtension.lowercased() == "gguf" else {
+            note("Это не файл модели .gguf: \(url.lastPathComponent)")
+            return
+        }
+        note("Выбран файл \(url.lastPathComponent). Загружаю модель, большая модель грузится до минуты…")
+        loadModel(named: url.lastPathComponent)
+    }
+
+    private func note(_ text: String) {
+        js("window.__llm && window.__llm.event(\(jsonString(["type": "note", "text": text])))")
     }
 
     // MARK: - Смысловые отпечатки

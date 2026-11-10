@@ -292,14 +292,17 @@ const KEY='portsol-3d-v1',DAYS=90,POP=30,ELITE=8;
 
 /* ================= мир ================= */
 const LOC={
-  home:{n:'Дом',x:1,y:1,c:'#c77dff'},mom:{n:'Дом мамы',x:0,y:3,c:'#f7a1c4'},gym:{n:'Спортзал',x:3,y:0,c:'#ff5d73'},
-  diner:{n:'Бургерная',x:2,y:2,c:'#ffd166'},garage:{n:'Гараж друзей',x:1,y:4,c:'#8bd17c'},college:{n:'Колледж',x:3,y:2,c:'#7aa7ff'},
-  office:{n:'Деловой центр',x:4,y:1,c:'#b8c4d6'},casino:{n:'Казино',x:5,y:0,c:'#f72585'},port:{n:'Порт',x:5,y:3,c:'#2ec4b6'},
-  lot:{n:'Пустырь',x:0,y:5,c:'#a0806a'},hospital:{n:'Больница',x:3,y:4,c:'#ffffff'},beach:{n:'Пляж',x:4,y:5,c:'#f4d58d'},
-  shop:{n:'Мастерская',x:2,y:5,c:'#ff8a4c'},phoneshop:{n:'Салон связи',x:2,y:0,c:'#5ec8f2'},cars:{n:'Автосалон',x:4,y:3,c:'#dcdcdc'},
-  den:{n:'Логово «Кобр»',x:4,y:4,c:'#d62828'},
-  club:{n:'Клуб «Неон»',x:0,y:1,c:'#b5179e'},flat:{n:'Квартира у моря',x:2,y:3,c:'#90e0ef'},taxi:{n:'Таксопарк',x:2,y:4,c:'#ffbe0b'},
+  home:{n:'Дом',x:1,y:1,c:'#c77dff'},mom:{n:'Дом мамы',x:0,y:1,c:'#f7a1c4'},gym:{n:'Спортзал',x:1,y:2,c:'#ff5d73'},
+  college:{n:'Колледж',x:2,y:0,c:'#7aa7ff'},phoneshop:{n:'Салон связи',x:3,y:0,c:'#5ec8f2'},hospital:{n:'Больница',x:4,y:0,c:'#ffffff'},
+  office:{n:'Деловой центр',x:3,y:1,c:'#b8c4d6'},casino:{n:'Казино',x:4,y:1,c:'#f72585'},club:{n:'Клуб «Неон»',x:4,y:2,c:'#b5179e'},
+  diner:{n:'Бургерная',x:2,y:2,c:'#ffd166'},
+  garage:{n:'Гараж друзей',x:0,y:3,c:'#8bd17c'},taxi:{n:'Таксопарк',x:1,y:3,c:'#ffbe0b'},shop:{n:'Мастерская',x:0,y:4,c:'#ff8a4c'},
+  cars:{n:'Автосалон',x:1,y:4,c:'#dcdcdc'},lot:{n:'Пустырь',x:0,y:5,c:'#a0806a'},
+  port:{n:'Порт',x:5,y:3,c:'#2ec4b6'},den:{n:'Логово «Кобр»',x:5,y:4,c:'#d62828'},
+  beach:{n:'Пляж',x:4,y:5,c:'#f4d58d'},flat:{n:'Квартира у моря',x:3,y:5,c:'#90e0ef'},
 };
+const SEASIDE={beach:[0,1],flat:[0,1],port:[1,0],den:[1,0]};
+function slotDir(k){const l=LOC[k],s=SEASIDE[k];let dx=l.x<5?1:-1,dz=l.y<5?1:-1;if(s){if(s[0])dx=s[0];if(s[1])dz=s[1]}return{dx,dz}}
 const BOOTHS=[[1,2],[3,3],[5,1],[0,4]];
 const ACT={
   sleep:{loc:'home',h:8,n:'спать',line:'Пора домой, спать.'},
@@ -884,7 +887,16 @@ function init3d(){
   sun=new THREE.DirectionalLight(0xffd2a8,1);sun.position.set(45,70,25);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
   Object.assign(sun.shadow.camera,{left:-50,right:50,top:50,bottom:-50,near:1,far:220});scene.add(sun);
   const water=new THREE.Mesh(new THREE.PlaneGeometry(800,800),new THREE.MeshPhongMaterial({color:0x1d5566,shininess:90,specular:0x6fb6c9}));water.rotation.x=-Math.PI/2;water.position.y=-.7;scene.add(water);
-  const sand=new THREE.Mesh(new THREE.BoxGeometry(92,1,92),new THREE.MeshLambertMaterial({color:0xb89d6a}));sand.position.y=-.55;sand.receiveShadow=true;scene.add(sand);
+  const rim=new THREE.Mesh(new THREE.BoxGeometry(84,1.2,84),new THREE.MeshLambertMaterial({color:0x3f6b45}));rim.position.set(-3,-.62,-3);rim.receiveShadow=true;scene.add(rim);
+  const sandM=new THREE.MeshLambertMaterial({color:0xd8bf86});
+  const sS=new THREE.Mesh(new THREE.BoxGeometry(96,1,20),sandM);sS.position.set(4,-.56,44);sS.receiveShadow=true;scene.add(sS);
+  const sE=new THREE.Mesh(new THREE.BoxGeometry(20,1,96),sandM);sE.position.set(44,-.56,4);sE.receiveShadow=true;scene.add(sE);
+  const wood=new THREE.MeshLambertMaterial({color:0x7a5a3a});const pier=new THREE.Mesh(new THREE.BoxGeometry(22,.4,3.4),wood);pier.position.set(46,.05,WX(3)+5);pier.castShadow=true;scene.add(pier);
+  for(let i=0;i<6;i++){const post=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,2),wood);post.position.set(37+i*4,-.6,WX(3)+5+((i%2)?1.5:-1.5));scene.add(post)}
+  for(let i=0;i<4;i++){const boat=new THREE.Group();const hull=new THREE.Mesh(new THREE.BoxGeometry(4,.8,1.6),new THREE.MeshLambertMaterial({color:[0xffffff,0xe63946,0x3a86ff,0xffbe0b][i]}));const cab=new THREE.Mesh(new THREE.BoxGeometry(1.4,.8,1.2),new THREE.MeshLambertMaterial({color:0xeeeeee}));cab.position.set(-.6,.7,0);boat.add(hull,cab);boat.position.set(40+i*5,-.4,WX(3)+(i%2?9:1));boat.rotation.y=(i%2?.2:-.15);scene.add(boat);boats.push(boat)}
+  const palmT=new THREE.MeshLambertMaterial({color:0x8a6a45}),palmL=new THREE.MeshLambertMaterial({color:0x2f8f4e});
+  const palm=(x,z)=>{const t=new THREE.Mesh(new THREE.CylinderGeometry(.18,.28,4.5,6),palmT);t.position.set(x,2.2,z);t.rotation.z=(R()-.5)*.2;const l=new THREE.Mesh(new THREE.ConeGeometry(2,1,7),palmL);l.position.set(x,4.6,z);l.rotation.x=Math.PI;t.castShadow=l.castShadow=true;scene.add(t,l)};
+  for(let i=0;i<16;i++)palm(-34+i*5+R()*2,38+R()*6);for(let i=0;i<10;i++)palm(38+R()*6,-30+i*6+R()*2);
   const ground=new THREE.Mesh(new THREE.BoxGeometry(74,1,74),new THREE.MeshLambertMaterial({color:0x4a3d57}));ground.position.y=-.5;ground.receiveShadow=true;scene.add(ground);
   const roadM=new THREE.MeshLambertMaterial({color:0x241c2d}),lineM=new THREE.MeshBasicMaterial({color:0x8a7a63});
   for(let i=0;i<6;i++){const v=WX(i);
@@ -892,7 +904,7 @@ function init3d(){
     const b=new THREE.Mesh(new THREE.BoxGeometry(63.2,.12,3.2),roadM);b.position.set(0,.03,v);b.receiveShadow=true;scene.add(b);
     for(let k=-29;k<30;k+=4){const d1=new THREE.Mesh(new THREE.BoxGeometry(.15,.14,1.6),lineM);d1.position.set(v,.04,k);scene.add(d1);const d2=new THREE.Mesh(new THREE.BoxGeometry(1.6,.14,.15),lineM);d2.position.set(k,.05,v);scene.add(d2)}}
   const used=new Set(),key=(x,z)=>Math.round(x)+','+Math.round(z);
-  for(const k in LOC){const l=LOC[k],dx=l.x<5?1:-1,dz=l.y<5?1:-1,px=WX(l.x)+dx*4.2,pz=WX(l.y)+dz*4.2;used.add(key(px,pz));
+  for(const k in LOC){const l=LOC[k],{dx,dz}=slotDir(k),px=WX(l.x)+dx*4.2,pz=WX(l.y)+dz*4.2;used.add(key(px,pz));
     const h=HGT[k]||5;let mesh;
     if(k==='lot'){mesh=new THREE.Mesh(new THREE.BoxGeometry(6,.3,6),new THREE.MeshLambertMaterial({color:0x8a6a52}));mesh.position.set(px,.15,pz)}
     else if(k==='beach'){mesh=new THREE.Mesh(new THREE.BoxGeometry(6,.25,6),new THREE.MeshLambertMaterial({color:0xf0d79a}));mesh.position.set(px,.13,pz);
@@ -908,8 +920,18 @@ function init3d(){
   const pal=[0x4a3f58,0x54475f,0x463b52,0x5a4d66,0x4e4259];
   for(let x=0;x<6;x++)for(let y=0;y<6;y++)for(const[dx,dz]of[[1,1],[1,-1],[-1,1],[-1,-1]]){
     if(x+dx<0||x+dx>5||y+dz<0||y+dz>5)continue;const px=WX(x)+dx*4.2,pz=WX(y)+dz*4.2;if(used.has(key(px,pz)))continue;used.add(key(px,pz));
-    if(R()<.18){const tr=new THREE.Mesh(new THREE.ConeGeometry(1.2,3,8),new THREE.MeshLambertMaterial({color:0x3f7a4a}));tr.position.set(px,1.5,pz);tr.castShadow=true;scene.add(tr);continue}
-    const h=1.5+R()*4,w=3.4+R()*1.2;const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,w),new THREE.MeshLambertMaterial({color:pal[(R()*pal.length)|0]}));b.position.set(px,h/2,pz);b.castShadow=true;b.receiveShadow=true;scene.add(b);
+    const dist=pz>24||px>24?'coast':(px<-4&&pz>4)?'ind':(px<-4||pz<-20)?'res':'down';
+    const tree=()=>{const tr=new THREE.Mesh(new THREE.ConeGeometry(1.2,3,8),new THREE.MeshLambertMaterial({color:0x3f7a4a}));tr.position.set(px+(R()-.5)*2,1.5,pz+(R()-.5)*2);tr.castShadow=true;scene.add(tr)};
+    if(dist==='coast'&&R()<.5){palm(px,pz);continue}
+    if((dist==='res'&&R()<.3)||(dist==='down'&&R()<.12)){const pk=new THREE.Mesh(new THREE.BoxGeometry(5,.15,5),new THREE.MeshLambertMaterial({color:0x4f8a4f}));pk.position.set(px,.08,pz);pk.receiveShadow=true;scene.add(pk);tree();tree();continue}
+    let h,w,col;
+    if(dist==='down'){h=4+R()*6;w=3.6+R()*1.2;col=pick([0x5d6b86,0x6f7f9a,0x4f5a72,0x7b6f9a,0x55657f])}
+    else if(dist==='ind'){h=2.2+R()*1.6;w=4.8;col=pick([0x5b6470,0x6b6f76,0x4f5860])}
+    else if(dist==='res'){h=2.2+R()*1.4;w=3.2+R()*.8;col=pick([0xe9d8b4,0xd9b99b,0xc8d5b9,0xf0e2c8,0xbfc9d9])}
+    else{h=1.8+R()*1.5;w=3.2;col=pick([0xf2efe6,0xbfe3ef,0xf5d6a8])}
+    const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,w),new THREE.MeshLambertMaterial({color:col}));b.position.set(px,h/2,pz);b.castShadow=true;b.receiveShadow=true;scene.add(b);
+    if(dist==='res'||dist==='coast'){const rf=new THREE.Mesh(new THREE.ConeGeometry(w*.78,1.5,4),new THREE.MeshLambertMaterial({color:pick([0xa4483a,0x8c3d2e,0x6b4f3a])}));rf.position.set(px,h+.75,pz);rf.rotation.y=Math.PI/4;rf.castShadow=true;scene.add(rf);if(R()<.4)tree()}
+    if(dist==='ind'&&R()<.5){for(let c=0;c<2;c++){const ct=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.1,1.1),new THREE.MeshLambertMaterial({color:pick([0xc0392b,0x2e86de,0xf39c12,0x27ae60])}));ct.position.set(px+(R()-.5)*1.5,h+.55+c*1.1,pz+(R()-.5)*1.5);scene.add(ct)}}
     const win=new THREE.Mesh(new THREE.BoxGeometry(w+.02,h*.6,w*.5),new THREE.MeshBasicMaterial({color:0xffd9a0,transparent:true,opacity:0}));win.position.set(px,h*.55,pz);win.userData.win=true;scene.add(win);windows.push(win)}
   for(const[x,y]of BOOTHS){const g=new THREE.Group();const m1=new THREE.Mesh(new THREE.BoxGeometry(1.1,2.6,1.1),new THREE.MeshLambertMaterial({color:0x1f6fa8}));m1.position.y=1.3;m1.castShadow=true;
     const glow=new THREE.MeshBasicMaterial({color:0x9fe0ff});const w=new THREE.Mesh(new THREE.BoxGeometry(1.14,1,.9),glow);w.position.y=1.7;boothMats.push(glow);g.add(m1,w);g.position.set(WX(x)+2.1,0,WX(y)-2.1);scene.add(g)}
@@ -926,7 +948,7 @@ function init3d(){
     const hit=ray.intersectObjects(locMeshes,false)[0];if(hit)openMenu(hit.object.userData.loc,e.clientX-r.left,e.clientY-r.top);else closeMenu()});
   new ResizeObserver(resize3d).observe(stage);resize3d();ok3d=true;
 }
-const windows=[];
+const windows=[],boats=[];
 function resize3d(){if(!renderer)return;const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
 function lerpC(a,b,t){return new THREE.Color(a).lerp(new THREE.Color(b),t)}
 function skyAt(h){h=((h%24)+24)%24;
@@ -945,7 +967,7 @@ function render3d(now){
     const q=lpath(anim.from,anim.to,Math.min(1,e+.02));if(Math.abs(q.x-p.x)+Math.abs(q.z-p.z)>.001)ricoObj.rotation.y=Math.atan2(q.x-p.x,q.z-p.z);
     if(k>=1){const r=anim.res;anim=null;r()}}
   else if(control){p={x:P3.x,z:P3.z};moving=ctrlMoving;ricoObj.rotation.y=P3.ry}
-  else{const a=W3(C.loc),l=LOC[C.loc];p={x:a.x+(l.x<5?1.8:-1.8),z:a.z+(l.y<5?1.8:-1.8)}}
+  else{const a=W3(C.loc),sd=slotDir(C.loc);p={x:a.x+sd.dx*1.8,z:a.z+sd.dz*1.8}}
   lastP=p;const useCar=control&&!anim?!!veh:(moving&&C.car);carObj.visible=useCar;ricoObj.visible=(!!champ||AMN.on)&&!useCar;
   ricoObj.position.set(p.x,moving?Math.abs(Math.sin(now/110))*.15:0,p.z);carObj.position.set(p.x,0,p.z);carObj.rotation.y=ricoObj.rotation.y-Math.PI/2;
   ricoLight.position.set(p.x,4,p.z);
@@ -972,7 +994,7 @@ let control=false,P3={x:0,z:0,ry:0},ctrlMoving=false,veh=null,joy={x:0,y:0},keys
 const ROADS=[0,1,2,3,4,5].map(i=>WX(i));
 const nr=v=>ROADS.reduce((a,b)=>Math.abs(b-v)<Math.abs(a-v)?b:a);
 function onRoad(x,z){if(x<-31.7||x>31.7||z<-31.7||z>31.7)return false;for(const v of ROADS)if(Math.abs(x-v)<1.95||Math.abs(z-v)<1.95)return true;return false}
-function standPos(k){const a=W3(k),l=LOC[k];return{x:a.x+(l.x<5?1.8:-1.8),z:a.z+(l.y<5?1.8:-1.8)}}
+function standPos(k){const a=W3(k),sd=slotDir(k);return{x:a.x+sd.dx*1.8,z:a.z+sd.dz*1.8}}
 function nearestLoc(x,z){let b=null,bd=1e9;for(const k in LOC){const s=standPos(k),d=Math.hypot(s.x-x,s.z-z);if(d<bd){bd=d;b=k}}return{k:b,d:bd}}
 function stars(){return Math.min(5,Math.ceil(C.heat/20-.001))}
 
@@ -1142,7 +1164,7 @@ function renderBank(){$('bal').textContent=(C.money<0?'−$':'$')+Math.abs(C.mon
 const mm=$('minimap'),mctx=mm.getContext('2d');
 const MX=x=>16+(x+32)/64*268;
 function drawMap(){const d=window.devicePixelRatio||1;if(mm.width!==300*d){mm.width=300*d;mm.height=300*d}mctx.setTransform(d,0,0,d,0,0);
-  mctx.fillStyle='#1b4d5c';mctx.fillRect(0,0,300,300);mctx.fillStyle='#b89d6a';mctx.fillRect(MX(-46),MX(-46),MX(46)-MX(-46),MX(46)-MX(-46));mctx.fillStyle='#3a2f45';mctx.fillRect(MX(-37),MX(-37),MX(37)-MX(-37),MX(37)-MX(-37));
+  mctx.fillStyle='#1b4d5c';mctx.fillRect(0,0,300,300);mctx.fillStyle='#3f6b45';mctx.fillRect(MX(-45),MX(-45),MX(39)-MX(-45),MX(39)-MX(-45));mctx.fillStyle='#d8bf86';mctx.fillRect(MX(-44),MX(34),MX(60)-MX(-44),MX(60)-MX(34));mctx.fillRect(MX(34),MX(-44),MX(60)-MX(34),MX(60)-MX(-44));mctx.fillStyle='#3a2f45';mctx.fillRect(MX(-37),MX(-37),MX(37)-MX(-37),MX(37)-MX(-37));
   mctx.strokeStyle='#15101c';mctx.lineWidth=7;for(const v of ROADS){mctx.beginPath();mctx.moveTo(MX(v),MX(-31));mctx.lineTo(MX(v),MX(31));mctx.stroke();mctx.beginPath();mctx.moveTo(MX(-31),MX(v));mctx.lineTo(MX(31),MX(v));mctx.stroke()}
   mctx.font='600 9px "Golos Text",sans-serif';mctx.textAlign='center';
   for(const k in LOC){const p=standPos(k);mctx.fillStyle=LOC[k].c;mctx.beginPath();mctx.arc(MX(p.x),MX(p.z),5,0,7);mctx.fill();mctx.fillStyle='#f3ebe6';mctx.fillText(LOC[k].n.replace(/«|»/g,''),MX(p.x),MX(p.z)-8)}
@@ -1287,14 +1309,14 @@ window.__llm={emb(id,v){const p=EMB.pend[id];if(p){delete EMB.pend[id];p(v)}},ch
 const nativeShim={createChatCompletion:o=>new Promise((res,rej)=>{const id=++NL.seq;NL.pend[id]={res,rej,onData:o.onData||(()=>{})};
   window.webkit.messageHandlers.llm.postMessage({cmd:'chat',id,messages:o.messages,max_tokens:o.max_tokens||200,temperature:o.temperature||.7,json:!!o.response_format})}),exit:async()=>{}};
 function nsend(m){if(NATIVE)window.webkit.messageHandlers.llm.postMessage(m)}
-function nativeEvent(e){NL.st=e;
+function nativeEvent(e){if(e.type==='note'){sys(e.text);return}NL.st=e;
   if(e.loaded){AI.w=nativeShim;AI.ready=true;AI.name=e.loaded;aiStatus('')}else if(e.type==='status'){AI.ready=false}
   if(e.error)aiStatus(e.error,true);else if(e.loading)aiStatus(`Загружаю ${e.loading}… ${e.progress!=null?Math.round(e.progress*100)+'%':''}`);
   if(e.justLoaded)sys(`Нейросеть загружена: ${e.loaded}. Работает на видеочипе iPhone.`);
   renderNativeBox();aiUI();brainDirty=true}
 function renderNativeBox(){const b=$('ai-native');if(!b)return;b.innerHTML='';const st=NL.st||{};
   if(st.loading||st.error){const q=document.createElement('p');q.className='st';q.textContent=st.error?'Ошибка: '+st.error:`Загружаю ${st.loading}… ${st.progress!=null?Math.round(st.progress*100)+'%':''}`;b.append(q)}
-  const p=document.createElement('p');p.textContent=st.loaded?`Загружена: ${st.loaded}`:'Положи файл .gguf в «Файлы» → «На iPhone» → «Рико» или выбери его кнопкой ниже. Подойдёт и большая модель: она работает напрямую, без браузерных ограничений.';b.append(p);
+  const p=document.createElement('p');p.textContent=st.loaded?`Загружена: ${st.loaded}`:'Нажми «Выбрать файл модели…» и укажи свой .gguf. Ещё можно в приложении «Файлы» нажать на файл и подержать → «Поделиться» → «Рико», или положить его в «На iPhone» → «Рико». Просто нажать на файл в «Файлах» не сработает: iOS не умеет открывать .gguf.';b.append(p);
   for(const f of st.models||[]){const r=document.createElement('button');r.type='button';r.textContent=(st.loaded===f.name?'✓ ':'Загрузить: ')+f.name+` (${(f.size/1e9).toFixed(1)} ГБ)`;r.disabled=!!st.loading||st.loaded===f.name;r.onclick=()=>nsend({cmd:'load',name:f.name});b.append(r)}
   const pk=document.createElement('button');pk.type='button';pk.className='primary';pk.textContent='Выбрать файл модели…';pk.disabled=!!st.loading;pk.onclick=()=>nsend({cmd:'pick'});b.append(pk);
   const rf=document.createElement('button');rf.type='button';rf.textContent='Обновить список';rf.onclick=()=>nsend({cmd:'status'});b.append(rf)}

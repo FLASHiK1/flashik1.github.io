@@ -12,4 +12,10 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         window = w
         return true
     }
+
+    /// «Поделиться» → «Рико» или «Открыть в…» из приложения «Файлы»
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        (window?.rootViewController as? GameViewController)?.openModel(url)
+        return true
+    }
 }

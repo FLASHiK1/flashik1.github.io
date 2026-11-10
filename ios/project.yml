@@ -27,6 +27,21 @@ targets:
         CFBundleVersion: "1"
         UILaunchScreen: {}
         UIFileSharingEnabled: true
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: GGUF Model
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - io.github.flashik1.gguf
+              - public.data
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: io.github.flashik1.gguf
+            UTTypeDescription: GGUF Model
+            UTTypeConformsTo:
+              - public.data
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - gguf
         LSSupportsOpeningDocumentsInPlace: true
         UIRequiresFullScreen: false
         UISupportedInterfaceOrientations:
